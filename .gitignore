@@ -9,4 +9,8 @@ __pycache__/
 # Jupyter Notebook
 .ipynb_checkpoints
 
+# project-specific
+*.zip
+*.gz
+
 cache/
