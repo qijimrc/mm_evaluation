@@ -37,11 +37,11 @@ class BaseTask:
         pass
 
     @NotImplementedError
-    def calc_scores(self, examples: List[Example], metrics: List[str]) -> Dict:
+    def calc_scores(self, res_examples: List[Example], metrics: List[str]) -> Dict:
         """ Calculate scores with specified metrics.
           Args:
-            @examples:
-            @metrics:
+            @res_examples: a list of prediction examples instanced from `Example` class. 
+            @metrics: the metric names to be evaluated.
           Return:
             A result dict keyed by metrics names.
         """

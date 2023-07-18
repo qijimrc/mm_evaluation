@@ -11,7 +11,7 @@ class Example:
                  vis: str=None,
                  context: Any=None,
                  question: str=None,
-                 answer: str=None) -> None:
+                 answers: str=None) -> None:
         """ Construct an example.
           Args:
             @task: the task name.
@@ -19,15 +19,25 @@ class Example:
             @vis: the path of vison input (e.g., image).
             @context: the context.
             @question: the language question.
-            @answer: the language answer.
+            @answer: a list of language answers.
         """
         self.task = task
         self.idx = idx
         self.vis = vis
         self.context = context
         self.question = question
-        self.answer = answer
+        self.answers = answers
 
+
+    def to_json(self,):
+      return {'task': self.task, 'idx':self.idx, 'vis':self.vis,
+                'context':self.context, 'question':self.question, 'answers':self.answers}
+    
+    @classmethod
+    def from_json(example_js: dict):
+       """ Initiate class from json object.
+       """
+       return Example(**example_js)
+    
     def __str__(self) -> str:
-        return json.dumps({'task': self.task, 'idx':self.idx, 'vis':self.vis,
-                'context':self.context, 'question':self.question, 'answer':self.answer})
+      return json.dumps(self.to_json())

@@ -49,6 +49,11 @@ class Registry:
         """
 
         def wrap(metric_cls):
+            from src.metrics.base_metric import BaseMetric
+
+            assert issubclass(
+                metric_cls, BaseMetric
+            ), "All metrics must inherit BaseMetric class"
             if name in cls.mapping["metric_name_mapping"]:
                 raise KeyError(
                     "Name '{}' already registered for {}.".format(
