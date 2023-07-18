@@ -1,6 +1,7 @@
 from typing import Any
 from src.common.example import Example
 from src.common.registry import Registry
+from src.metrics.base_metric import BaseMetric
 from src.metrics.vqa_acc.vqa import VQA
 from src.metrics.vqa_acc.vqa_eval import VQAEval
 from typing import List, Dict
@@ -8,7 +9,7 @@ from typing import List, Dict
 
 
 @Registry.register_metric('vqa_acc')
-class VqaAccMetric:
+class VqaAccMetric(BaseMetric):
     def __init__(self) -> None:
         pass
 

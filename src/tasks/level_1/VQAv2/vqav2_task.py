@@ -33,12 +33,10 @@ class VQAv2Task(BaseTask):
         idx = 0
         for ftype, path in anns_paths.items():
             if ftype == 'question':
-              val_questions = {q['question_id']: q for q in json.load(path)['questions']}
+              val_questions = {q['question_id']: q for q in json.load(open(path))['questions']}
             elif ftype == 'annotation':
-              val_annotations = {}
-              for a in json.load(path)['annotations']:
-                 if a['question_id'] not in val_annotations: val_annotations[a['question_id']] = [a]
-                 else: val_annotations[a['question_id']].append(a)
+              val_annotations = {a['question_id']: a for a in json.load(open(path))['annotations']}
+              
         for qid in val_questions:
           ex = Example(task=self.task_name,
                       idx=idx,

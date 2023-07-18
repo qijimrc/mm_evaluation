@@ -6,6 +6,7 @@ from src.evaluator import Evaluator
 from src.common.example import Example
 import torch
 from lavis.models import load_model, load_model_and_preprocess
+from PIL import Image
 
 
 class ModelInterface:
@@ -33,7 +34,7 @@ class ModelInterface:
         #     name="blip2_opt", model_type="caption_coco_opt6.7b", is_eval=True, device=device
         # )
         #
-        model, vis_processors, _ = load_model_and_preprocess(
+        self.model, self.vis_processors, _ = load_model_and_preprocess(
             name="blip2_t5", model_type="pretrain_flant5xl", is_eval=True, device=device
         )
         #
@@ -45,9 +46,9 @@ class ModelInterface:
         torch.cuda.set_device(device)
 
     def __call__(self, example) -> str:
-        img = self.vis_processors['eval'](example.vis).unsqueeze(0).to(device)
+        img = Image.open(example.vis).convert("RGB")
         out = self.model.generate({
-                'image': img,
+                'image': self.vis_processors['eval'](img).unsqueeze(0).to(self.device),
                 'prompt': "Question: %s" % example.question,
         })
         return out
@@ -57,13 +58,14 @@ class ModelInterface:
 def evaluating_in_code(model_interface):
     """ Use our benchmark in your training code.
     """
-    import ipdb
-    ipdb.set_trace()
     # Initialize evaluator with all tasks
     evaluator = Evaluator()
 
+    import ipdb
+    ipdb.set_trace()
     predictions = []
-    for ex in evaluator.get_mixed_dataloader():
+    dataloader = evaluator.get_mixed_dataloader()
+    for ex in dataloader:
         ans = model_interface(ex)
         predictions.append(Example(task=ex.task, idx=ex.idx, answers=[ans]))
     metrics_scores = evaluator.evaluate_examples(predictions)
@@ -74,7 +76,8 @@ def evaluating_on_results(model_interface, save_js='results.json'):
     """ Use our benchmark in your training code.
     """
     predictions = []
-    for ex in evaluator.get_mixed_dataloader():
+    dataloader = evaluator.get_mixed_dataloader()
+    for ex in dataloader:
         ans = model_interface(ex)
         predictions.append(Example(task=ex.task, idx=ex.idx, answers=[ans]))
     
@@ -91,6 +94,6 @@ if __name__ == '__main__':
 
     model_interface = ModelInterface()
 
-    evaluating_in_code(model_interface)
+    evaluating_in_code(model_interface=model_interface)
 
-    evaluating_on_results(model_interface, save_js='blip2_result.json')
+    evaluating_on_results(model_interface=model_interface, save_js='blip2_result.json')

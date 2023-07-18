@@ -12,6 +12,7 @@ class Evaluator:
         
         if task_names is None:
             task_names = Registry.list_tasks()
+
         self.tasks = {
             name: Registry.get_task_class(name)() for name in task_names
         }
@@ -30,12 +31,13 @@ class Evaluator:
             dataloaders[name] = self.tasks.examples
         return dataloaders
 
-    def get_mixed_dataloader(self, ) -> Generator:
-        def dataloader():
-            for task in self.tasks:
-                for ex in task.examples:
-                    yield ex
-        return dataloader
+    def get_mixed_dataloader(self, ) -> List:
+      """ Get dataloader mixed with all tasks.
+      """
+      dataloader = []
+      for name, task in self.tasks.items():
+         dataloader.extend(task.examples)
+      return dataloader
 
 
     def evaluate_examples(self, res_examples: List[Example], metrics_cfg: Dict=None) -> Dict:
