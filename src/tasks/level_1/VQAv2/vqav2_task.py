@@ -36,11 +36,11 @@ class VQAv2Task(BaseTask):
               val_questions = {q['question_id']: q for q in json.load(open(path))['questions']}
             elif ftype == 'annotation':
               val_annotations = {a['question_id']: a for a in json.load(open(path))['annotations']}
-              
+
         for qid in val_questions:
           ex = Example(task=self.task_name,
                       idx=idx,
-                      vis=os.path.join(vis_root, 'COCO_val2014_{}.jpg'.format(qid)),
+                      vis=os.path.join(vis_root, 'COCO_val2014_000000{}.jpg'.format(val_questions[qid]['image_id'])),
                       question=val_questions[qid]['question'],
                       answers=[ans['answer'] for ans in val_annotations[qid]['answers']]) # here ignored other answer informatio
           examples.append(ex)
