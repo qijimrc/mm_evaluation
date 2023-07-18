@@ -94,10 +94,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--eval_tasks', type=str, nargs='+', default=['VQAv2'],
                         help='Specify the tasks for evaluation, where the supported are [VQAv2, Visual7W]')
-    parser.add_argument('--eval_files', type=str, nargs='+', default=[None],
+    parser.add_argument('--result_file', type=str, nargs='+', default=[None],
                         help='Provide the prediction files saved with canonical format. The count must equal to the tasks.')
     args = parser.parse_args()
 
     evaluator = Evaluator()
-    scores = evaluator.evaluate_files(args.eval_tasks, args.eval_files)
+    scores = evaluator.evaluate_files(args.result_file)
     print(scores)

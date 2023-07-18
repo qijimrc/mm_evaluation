@@ -70,7 +70,7 @@ Each example in our benchmark is conformed with a unified format:
     'vis': // the vision path
     'context': // the optinal context for input
     'question': // the input question
-    'answer':  // the language answer
+    'answers':  // the list of language answers
 }
 ```
 
@@ -83,27 +83,29 @@ For the sake of readability, some details have been omitted.
 ├── README.md
 ├── data
 └── src
-    ├── __init__.py
     ├── common
     │   ├── example.py
     │   ├── registry.py
     │   └── utils.py
-    ├── evaluator.py
     ├── metrics
     │   ├── bleu
     │   └── rouge
+    │   └── vqa_acc
     └── tasks
-        ├── base_task.py
-        ├── level_1
-        │   ├── VQAv2
-        │   │   ├── download.sh
-        │   │   ├── vqav2_card.md
-        │   │   └── vqav2_task.py
-        │   └── Visual7W
-        ├── level_2
-        │   └── OK-VQA
-        └── level_3
-            └── kosmos-iq50
+    │   ├── base_task.py
+    │   ├── level_1
+    │   │   ├── VQAv2
+    │   │   │   ├── download.sh
+    │   │   │   ├── vqav2_card.md
+    │   │   │   └── vqav2_task.py
+    │   │   └── Visual7W
+    │   ├── level_2
+    │   │   └── OK-VQA
+    │   └── level_3
+    │       └── kosmos-iq50
+    ├── evaluator.py
+    └── __init__.py
+
 ```
 
 ## Usage
@@ -121,7 +123,7 @@ evaluator = Evaluator()
 predictions = []
 for ex in evaluator.get_mixed_dataloader():
     ans = model(ex.vis, ex.context, ex.question)
-    predictions.append(Example(task=ex.task, idx=ex.idx, answer=ans))
+    predictions.append(Example(task=ex.task, idx=ex.idx, answers=[ans]))
 scores = evaluator.evaluate_examples(predictions)
 print(scores)
 ```
@@ -129,5 +131,5 @@ print(scores)
 ### Performing the evaluation on saved results
 
 ```Python
-python src.evaluator --eval_tasks VQAv2 Visual7w --eval_files 'Path/To/YourResult.json' 'Path/To/YourResult.json'
+python src.evaluator --result_file 'Path/To/YourResult.json'
 ```
