@@ -1,0 +1,29 @@
+# Configure the data paths for evaluation
+
+level_1:
+
+  VQAv2:
+    # annotation files
+    anns_paths:
+      question: /nxchinamobile2/shared/qiji/DATA/MultiInstruct/VQA_V2/v2_OpenEnded_mscoco_val2014_questions.json
+      annotation: /nxchinamobile2/shared/qiji/DATA/MultiInstruct/VQA_V2/v2_mscoco_val2014_annotations.json
+    # directory of images
+    img_dir: /nxchinamobile2/shared/img_datasets/MSCOCO/MSCOCO2014/val2014
+    # which metrics to be used for measurements, supporting [vqa_acc, ...]
+    metrics: [vqa_acc, gpt3.5]
+    # whether to be used for current evaluation
+    eval: True
+
+  # visual7w:
+  #   anns_paths: [path/to/annotations]
+  #   img_dir: path/to/images
+  #   metrics: [vqa_acc, gpt3.5]
+  #   eval: True
+
+# level_2:
+
+#   ok_vqa:
+#     anns_paths: [path/to/annotations]
+#     img_dir: path/to/images
+#     metrics: [vqa_acc, gpt3.5]
+#     eval: True

@@ -1,20 +1,22 @@
 from src.common.registry import Registry
 from src.common.example import Example
+import os
+import json
+from omegaconf import OmegaConf
 from typing import Dict, List, Generator
 from pprint import pprint
-import json
 import argparse
 
 
 
 class Evaluator:
-    def __init__(self, task_names: List[str]=None) -> None:
+    def __init__(self, cfg_path: str=os.path.dirname(__file__)+'/config.yaml') -> None:
         
-        if task_names is None:
-            task_names = Registry.list_tasks()
-
+        self.default_cfg = OmegaConf.load(cfg_path)
+        
         self.tasks = {
-            name: Registry.get_task_class(name)() for name in task_names
+            name: Registry.get_task_class(name)(self.default_cfg[level][name])
+              for level in self.default_cfg.keys() for name in self.default_cfg[level]
         }
 
 
@@ -40,7 +42,7 @@ class Evaluator:
       return dataloader
 
 
-    def evaluate_examples(self, res_examples: List[Example], metrics_cfg: Dict=None) -> Dict:
+    def evaluate_examples(self, res_examples: List[Example]) -> Dict:
         """ Perform evaluation with given examples of predictions.
           Args:
             @res_examples: a list of predicted examples instanced by `Example` class.
@@ -74,7 +76,7 @@ class Evaluator:
             json.dump(result, f, indent=2)
 
 
-    def evaluate_files(self, canonical_file: str, metrics_cfg: Dict=None) -> Dict:
+    def evaluate_files(self, canonical_file: str) -> Dict:
         """ Perform evaluation with given prediction files saved with canonical format.
           Args:
             @canonical_file: the result file of canonical format saved through `save_canonical_results` function.

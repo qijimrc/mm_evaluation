@@ -1,15 +1,14 @@
 from src.common.registry import Registry
 from src.common.example import Example
 from typing import Any, Dict, List, Optional
-from torch.utils.data.dataset import Dataset
 
 class BaseTask:
-    def __init__(self, vis_root: str, anns_paths: List[str]):
+    def __init__(self, img_dir: str, anns_paths: List[str]):
 
-        self.vis_root = vis_root
+        self.img_dir = img_dir
         self.anns_paths = anns_paths
 
-        self.examples = self.to_examples(vis_root, anns_paths)
+        self.examples = self.to_examples(img_dir, anns_paths)
         self.cur = 0
 
 
@@ -26,10 +25,10 @@ class BaseTask:
         return ex
 
     @NotImplementedError
-    def to_examples(self, vis_root: str, anns_paths: List) ->List[Example]:
+    def to_examples(self, img_dir: str, anns_paths: List) ->List[Example]:
         """ Convert annotations to canonical examples.
           Args:
-            @vis_root: the root dir of vision source.
+            @img_dir: the root dir of vision source.
             @anns_paths: the paths of annotation files.
           Return:
             A list of examples instanced from the `Example` class.

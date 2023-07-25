@@ -7,31 +7,33 @@ class Example:
     """
     def __init__(self,
                  task: str,
+                 img_path: str,
+                 question: str,
+                 answers: List,
                  idx: int=0,
-                 vis: str=None,
                  context: Any=None,
-                 question: str=None,
-                 answers: str=None) -> None:
+                 instruction: str= None) -> None:
         """ Construct an example.
           Args:
             @task: the task name.
             @idx: the index of current example.
-            @vis: the path of vison input (e.g., image).
+            @img_path: the path of vison input (e.g., image).
             @context: the context.
             @question: the language question.
             @answer: a list of language answers.
         """
-        self.task = task
         self.idx = idx
-        self.vis = vis
+        self.task = task
+        self.instruction = instruction
+        self.img_path = img_path
         self.context = context
         self.question = question
         self.answers = answers
 
 
     def to_json(self,):
-      return {'task': self.task, 'idx':self.idx, 'vis':self.vis,
-                'context':self.context, 'question':self.question, 'answers':self.answers}
+      return {'task': self.task, 'img_path':self.img_path, 'question':self.question, 'answers':self.answers,
+              'idx':self.idx, 'context':self.context, 'instruction': self.instruction}
     
     @classmethod
     def from_json(example_js: dict):

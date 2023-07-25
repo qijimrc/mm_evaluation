@@ -1,7 +1,7 @@
 import sys, os
 from typing import Any
-sys.path.append('/data/qiji/repos/LAVIS')
-sys.path.append('/data/qiji/repos/mm_evaluation')
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'LAVIS'))
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from src.evaluator import Evaluator
 from src.common.example import Example
 import torch
@@ -93,6 +93,7 @@ if __name__ == '__main__':
     # os.environ['CUDA_VISIBLE_DEVICES'] = '3,4'
 
     model_interface = ModelInterface()
+    # model_interface = None
 
     evaluating_in_code(model_interface=model_interface)
 

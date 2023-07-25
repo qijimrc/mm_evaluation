@@ -1,30 +1,27 @@
 from src.common.registry import Registry
 from src.common.example import Example
 from src.tasks.base_task import BaseTask
+from typing import Any, Dict, List
 import os
 import json
-from typing import Any, Dict, List
 
 
 
 @Registry.register_task('VQAv2')
 class VQAv2Task(BaseTask):
-    def __init__(self, ):
+    def __init__(self, task_cfg):
 
         self.task_name = 'VQAv2'
-        self.vis_root = '/data/qiji/DATA/MSCOCO/val2014'
-        self.anns_paths = {
-            'question': '/data/qiji/repos/mm_evaluation/data/VQAv2/v2_OpenEnded_mscoco_val2014_questions.json',
-            'annotation': '/data/qiji/repos/mm_evaluation/data/VQAv2/v2_mscoco_val2014_annotations.json'
-        }
-        self.metrics = ['vqa_acc']
+        self.img_dir = task_cfg.img_dir
+        self.anns_paths = task_cfg.anns_paths
+        self.metrics = task_cfg.metrics
 
-        super().__init__(self.vis_root, self.anns_paths)
+        super().__init__(self.img_dir, self.anns_paths)
 
-    def to_examples(self, vis_root: str, anns_paths: List) ->List[Example]:
+    def to_examples(self, img_dir: str, anns_paths: List) ->List[Example]:
         """ Convert annotations to canonical examples.
           Args:
-            @vis_root: the root dir of vision source.
+            @img_dir: the root dir of vision source.
             @anns_paths: the paths of annotation files.
           Return:
             A list of examples instanced from the `Example` class.
@@ -40,7 +37,7 @@ class VQAv2Task(BaseTask):
         for qid in val_questions:
           ex = Example(task=self.task_name,
                       idx=idx,
-                      vis=os.path.join(vis_root, 'COCO_val2014_000000{}.jpg'.format(val_questions[qid]['image_id'])),
+                      img_path=os.path.join(img_dir, 'COCO_val2014_000000{}.jpg'.format(val_questions[qid]['image_id'])),
                       question=val_questions[qid]['question'],
                       answers=[ans['answer'] for ans in val_annotations[qid]['answers']]) # here ignored other answer informatio
           examples.append(ex)
