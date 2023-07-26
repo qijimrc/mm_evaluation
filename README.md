@@ -48,7 +48,7 @@ This benchmark evaluate the MLLMs's abilities from 3 levels:
     + associate objects with other similar objects that do not exist in current image
     + associate relations with other similar relations
     + associate composition of objects with other compositions
-        - **kosmos-iq50 [16]**
+        - **kosmos-iq50**
     + associate events with other similar events
     - metaphor, joke
         - **HatefulMemes**
@@ -67,7 +67,8 @@ Each example in our benchmark is conformed with a unified format:
 {
     'task': // the task name
     'idx': // the example index
-    'vis': // the vision path
+    'instruction': // task instruction
+    'img_path': // the vision path
     'context': // the optinal context for input
     'question': // the input question
     'answers':  // the list of language answers
@@ -78,7 +79,7 @@ Each example in our benchmark is conformed with a unified format:
 
 For the sake of readability, some details have been omitted.
 
-```
+```python
 .
 ├── README.md
 ├── data
@@ -103,8 +104,9 @@ For the sake of readability, some details have been omitted.
     │   │   └── OK-VQA
     │   └── level_3
     │       └── kosmos-iq50
-    ├── evaluator.py
-    └── __init__.py
+    ├── __init__.py
+    ├── config.yaml                   # configure data paths, metrics, evaluation tasks
+    └── evaluator.py
 
 ```
 
