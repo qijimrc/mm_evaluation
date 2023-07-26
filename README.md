@@ -82,7 +82,7 @@ For the sake of readability, some details have been omitted.
 .
 ├── README.md
 ├── data
-└── src
+└── mmbench
     ├── common
     │   ├── example.py
     │   ├── registry.py
@@ -115,8 +115,8 @@ We provide two types of usages for flexibility.
 ### Incorporating the evaluation in your code
 
 ```Python
-from src.common.example import Example
-from src.evaluation import Evaluator
+from mmbench.common.example import Example
+from mmbench.evaluation import Evaluator
 
 model = YourModel # your model
 evaluator = Evaluator()
@@ -131,5 +131,5 @@ print(scores)
 ### Performing the evaluation on saved results
 
 ```Python
-python src.evaluator --result_file 'Path/To/YourResult.json'
+python mmbench.evaluator --result_file 'Path/To/YourResult.json'
 ```

@@ -2,8 +2,8 @@ import sys, os
 from typing import Any
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'LAVIS'))
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from src.evaluator import Evaluator
-from src.common.example import Example
+from mmbench.evaluator import Evaluator
+from mmbench.common.example import Example
 import torch
 from lavis.models import load_model, load_model_and_preprocess
 from PIL import Image

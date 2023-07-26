@@ -1,9 +1,9 @@
 from typing import Any
-from src.common.example import Example
-from src.common.registry import Registry
-from src.metrics.base_metric import BaseMetric
-from src.metrics.vqa_acc.vqa import VQA
-from src.metrics.vqa_acc.vqa_eval import VQAEval
+from mmbench.common.example import Example
+from mmbench.common.registry import Registry
+from mmbench.metrics.base_metric import BaseMetric
+from mmbench.metrics.vqa_acc.vqa import VQA
+from mmbench.metrics.vqa_acc.vqa_eval import VQAEval
 from typing import List, Dict
 
 

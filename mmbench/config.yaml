@@ -27,3 +27,12 @@ level_1:
 #     img_dir: path/to/images
 #     metrics: [vqa_acc, gpt3.5]
 #     eval: True
+
+level_3:
+
+  HalVQA:
+    # description: Test the discriminative ability of the model for objects and attributes
+    anns_paths: /nxchinamobile2/shared/img_datasets/hal_val_sample/data_test.csv
+    img_dir: /nxchinamobile2/shared/img_datasets/hal_val_sample/evaluate_sample
+    metrics: [vqa_acc]
+    eval: True

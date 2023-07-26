@@ -15,11 +15,11 @@ class Registry:
 
         Usage:
 
-            from src.common.registry import registry
+            from mmbench.common.registry import registry
         """
 
         def wrap(task_cls):
-            from src.tasks.base_task import BaseTask
+            from mmbench.tasks.base_task import BaseTask
 
             assert issubclass(
                 task_cls, BaseTask
@@ -45,11 +45,11 @@ class Registry:
 
         Usage:
 
-            from src.common.registry import registry
+            from mmbench.common.registry import registry
         """
 
         def wrap(metric_cls):
-            from src.metrics.base_metric import BaseMetric
+            from mmbench.metrics.base_metric import BaseMetric
 
             assert issubclass(
                 metric_cls, BaseMetric
