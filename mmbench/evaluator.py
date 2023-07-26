@@ -1,11 +1,16 @@
-from src.common.registry import Registry
-from src.common.example import Example
 import os
+import sys
 import json
+import argparse
+
+if os.path.dirname(os.path.dirname(__file__)) not in sys.path:
+  sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
+from mmbench.common.registry import Registry
+from mmbench.common.example import Example
 from omegaconf import OmegaConf
 from typing import Dict, List, Generator
 from pprint import pprint
-import argparse
 
 
 
@@ -30,7 +35,7 @@ class Evaluator:
         """
         dataloaders = {}
         for name in task_names:
-            dataloaders[name] = self.tasks.examples
+            dataloaders[name] = self.tasks[name].examples
         return dataloaders
 
     def get_mixed_dataloader(self, ) -> List:

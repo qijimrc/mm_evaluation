@@ -1,5 +1,5 @@
-from src.common.registry import Registry
-from src.common.example import Example
+from mmbench.common.registry import Registry
+from mmbench.common.example import Example
 from typing import Any, Dict, List, Optional
 
 class BaseTask:
@@ -23,6 +23,9 @@ class BaseTask:
             ex = self.examples[self.cur]
             self.cur += 1
         return ex
+
+    def __len__(self) -> int:
+        return len(self.examples)
 
     @NotImplementedError
     def to_examples(self, img_dir: str, anns_paths: List) ->List[Example]:
