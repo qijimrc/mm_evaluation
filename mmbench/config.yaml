@@ -10,7 +10,7 @@ level_1:
     # directory of images
     img_dir: /nxchinamobile2/shared/img_datasets/MSCOCO/MSCOCO2014/val2014
     # which metrics to be used for measurements, supporting [vqa_acc, ...]
-    metrics: [vqa_acc, gpt3.5]
+    metrics: [vqa_acc, gpt35_metric]
     # whether to be used for current evaluation
     eval: True
 
@@ -34,5 +34,5 @@ level_3:
     # description: Test the discriminative ability of the model for objects and attributes
     anns_paths: /nxchinamobile2/shared/img_datasets/hal_val_sample/data_test.csv
     img_dir: /nxchinamobile2/shared/img_datasets/hal_val_sample/evaluate_sample
-    metrics: [vqa_acc]
+    metrics: [vqa_acc, gpt35_metric]
     eval: True
