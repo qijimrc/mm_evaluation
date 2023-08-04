@@ -16,3 +16,7 @@ data/*
 *.gz
 
 cache/
+
+**build
+**dist
+**egg-info

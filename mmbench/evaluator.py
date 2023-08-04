@@ -33,10 +33,21 @@ class Evaluator:
         Return:
           A dict keyed by task names.
         """
+        if task_names is None:
+            task_names = self.tasks.keys()
         dataloaders = {}
         for name in task_names:
             dataloaders[name] = self.tasks[name].examples
         return dataloaders
+
+    def get_single_dataloader(self, task_name: str):
+        """" Get dataloaders for specified single task.
+        Args:
+          @task_name: provide corresponding dataloader.
+        Return:
+          The dataloader.
+        """""
+        return self.tasks[task_name].examples
 
     def get_mixed_dataloader(self, ) -> List:
       """ Get dataloader mixed with all tasks.
@@ -65,7 +76,7 @@ class Evaluator:
         
         task_scores = {}
         for name in task_examples:
-          scores = self.tasks[name].calc_scores(task_examples[name])
+          scores = self.tasks[name].calc_scores(task_examples[name], metrics=self.tasks[name].metrics)
           task_scores[name] = scores
         pprint(task_scores)
         return task_scores

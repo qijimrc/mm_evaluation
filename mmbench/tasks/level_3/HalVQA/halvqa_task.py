@@ -13,6 +13,7 @@ class HalVQATask(BaseTask):
         self.img_dir = task_cfg.img_dir
         self.anns_paths = task_cfg.anns_paths
         self.metrics = task_cfg.metrics
+        self.example_types = set()
 
         super().__init__(self.img_dir, self.anns_paths)
 
@@ -31,7 +32,9 @@ class HalVQATask(BaseTask):
                          idx=idx,
                          img_path=os.path.join(img_dir, row["image_path"]),
                          question=row["prompt"],
-                         answers=[row["answer"]])
+                         answers=[row["answer"]],
+                         example_type=row["eval_type"])
+            self.example_types.add(row["eval_type"])
             examples.append(ex)
         return examples
 
@@ -44,10 +47,13 @@ class HalVQATask(BaseTask):
             A result dict keyed by metrics names.
         """
         metrics_scores = {}
-        for name in metrics:
-          metric_cls = Registry.get_metric_class(name)
-          if name == 'vqa_acc':
-            scores = metric_cls.calc_scores(res_examples, self.anns_paths['question'], self.anns_paths['annotation'])
-          metrics_scores[name] = scores
-        return scores
+        for ext in self.example_types:
+            cur_res_examples = [ex for ex in res_examples if ex.example_type == ext]
+            if len(cur_res_examples) > 0:
+              cur_ans_examples = [ex for ex in self.examples if ex.example_type == ext]
+              for name in metrics:
+                metric_cls = Registry.get_metric_class(name)
+                scores = metric_cls.calc_scores(cur_res_examples, cur_ans_examples, eval_type=ext)
+                metrics_scores[f'{name}-{ext}'] = scores
+        return metrics_scores
         

@@ -12,7 +12,8 @@ class Example:
                  answers: List,
                  idx: int=0,
                  context: Any=None,
-                 instruction: str= None) -> None:
+                 instruction: str= None,
+                 example_type: str=None) -> None:
         """ Construct an example.
           Args:
             @task: the task name.
@@ -21,6 +22,7 @@ class Example:
             @context: the context.
             @question: the language question.
             @answer: a list of language answers.
+            @example_type: example type identification.
         """
         self.idx = idx
         self.task = task
@@ -29,11 +31,12 @@ class Example:
         self.context = context
         self.question = question
         self.answers = answers
+        self.example_type = example_type
 
 
     def to_json(self,):
       return {'task': self.task, 'img_path':self.img_path, 'question':self.question, 'answers':self.answers,
-              'idx':self.idx, 'context':self.context, 'instruction': self.instruction}
+              'idx':self.idx, 'context':self.context, 'instruction': self.instruction, 'example_type': self.example_type}
     
     @classmethod
     def from_json(example_js: dict):
