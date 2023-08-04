@@ -17,11 +17,16 @@ class HalAccMetric(BaseMetric):
                                   "如果能提供更多信息"]
 
     def _contains(self, pred:str, answer:str) -> bool:
-        if answer in pred:
-            return 1
+        answer_list = answer.split(",")
+        # match
+        for answer in answer_list:
+            if answer in pred:
+                return 1
+        # uncertainty
         for word in self.uncertainty_words:
-            if word in answer:
+            if word in pred:
                 return 0.4
+        # not match
         return 0
 
     @classmethod
