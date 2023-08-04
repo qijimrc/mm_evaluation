@@ -1,18 +1,18 @@
 # Configure the data paths for evaluation
 
-level_1:
+# level_1:
 
-  VQAv2:
-    # annotation files
-    anns_paths:
-      question: /nxchinamobile2/shared/qiji/DATA/MultiInstruct/VQA_V2/v2_OpenEnded_mscoco_val2014_questions.json
-      annotation: /nxchinamobile2/shared/qiji/DATA/MultiInstruct/VQA_V2/v2_mscoco_val2014_annotations.json
-    # directory of images
-    img_dir: /nxchinamobile2/shared/img_datasets/MSCOCO/MSCOCO2014/val2014
-    # which metrics to be used for measurements, supporting [vqa_acc, ...]
-    metrics: [vqa_acc, gpt35_metric]
-    # whether to be used for current evaluation
-    eval: True
+#   VQAv2:
+#     # annotation files
+#     anns_paths:
+#       question: /nxchinamobile2/shared/qiji/DATA/MultiInstruct/VQA_V2/v2_OpenEnded_mscoco_val2014_questions.json
+#       annotation: /nxchinamobile2/shared/qiji/DATA/MultiInstruct/VQA_V2/v2_mscoco_val2014_annotations.json
+#     # directory of images
+#     img_dir: /nxchinamobile2/shared/img_datasets/MSCOCO/MSCOCO2014/val2014
+#     # which metrics to be used for measurements, supporting [vqa_acc, ...]
+#     metrics: [vqa_acc, gpt35_metric]
+#     # whether to be used for current evaluation
+#     eval: True
 
   # visual7w:
   #   anns_paths: [path/to/annotations]
@@ -31,8 +31,8 @@ level_1:
 level_3:
 
   HalVQA:
-    # description: Test the discriminative ability of the model for objects and attributes
-    anns_paths: /nxchinamobile2/shared/img_datasets/hal_val_sample/data_test.csv
+    # description: Test the discriminative ability of the model for objects and attribuvisualglm-6btes
+    anns_paths: /nxchinamobile2/shared/img_datasets/hal_val_finetuned/hallucination_finetuned_small.csv
     img_dir: /nxchinamobile2/shared/img_datasets/hal_val_sample/evaluate_sample
-    metrics: [vqa_acc, gpt35_metric]
+    metrics: [hal_acc]
     eval: True

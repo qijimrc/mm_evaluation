@@ -1,0 +1,9 @@
+ipdb
+numpy
+omegaconf
+openai
+pandas
+Pillow
+Pillow
+setuptools
+torch
