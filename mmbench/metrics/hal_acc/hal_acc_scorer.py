@@ -9,13 +9,20 @@ from typing import List, Dict
 @Registry.register_metric('hal_acc')
 class HalAccMetric(BaseMetric):
     def __init__(self) -> None:
-        pass
+        self.uncertainty_words = ["不知道",
+                                  "不确定",
+                                  "抱歉",
+                                  "无法得知",
+                                  "无法确认",
+                                  "如果能提供更多信息"]
 
-    @classmethod
-    def _contains(cls, pred:str, answer:str) -> bool:
-        """if pred contained by answer, return True; or False.
-        """
-        return pred in answer
+    def _contains(self, pred:str, answer:str) -> bool:
+        if answer in pred:
+            return 1
+        for word in self.uncertainty_words:
+            if word in answer:
+                return 0.4
+        return 0
 
     @classmethod
     def calc_scores(cls, res_examples: List[Example], ans_examples: List[Example], eval_type=None) -> Dict:
@@ -26,9 +33,7 @@ class HalAccMetric(BaseMetric):
         for qid, pred in predict_result.items():
             assert qid in true_result
             true = true_result[qid]
-            if cls._contains(pred, true):
-                compare_results.append(1)
-            else:
-                compare_results.append(0)
+            score = cls()._contains(pred, true)
+            compare_results.append(score)
         scores['acc'] = sum(compare_results) / len(compare_results)
         return scores
