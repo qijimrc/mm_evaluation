@@ -32,7 +32,7 @@ def calc_sentences_similarities(model: AutoModel, tokenizer: AutoTokenizer, sent
 
 
 
-def select_samples(vqav2_questions_f: List, vqav2_anns_f: List, N: int=500, save_f='vqav2_sampled.jsonl'):
+def select_samples(vqav2_questions_f: List, vqav2_anns_f: List, N: int=500, save_f='vqav2_sampled.json'):
     ''' Select VQAv2 samples to maintain the examples with the most diversified questions. (currently peforming random due to the cost)
     '''
     with open(vqav2_questions_f) as f1, open(vqav2_anns_f) as f2:
@@ -41,14 +41,18 @@ def select_samples(vqav2_questions_f: List, vqav2_anns_f: List, N: int=500, save
     sorted_qs = sorted(questions['questions'], key=lambda x:x['question_id'])
     sorted_anns = sorted(anns['annotations'], key=lambda x:x['question_id'])
     
-    tot_succeed = 0
     sampling_ids = np.random.choice(range(len(sorted_qs)), min(N, len(sorted_qs)), replace=False)
+    tot_succeed = 0
+    qa_annotations = []
+    for idx in tqdm.tqdm(sampling_ids):
+        q_info, a_info = sorted_qs[idx], sorted_anns[idx]
+        qa_annotations.append(q_info | a_info)
+        tot_succeed += 1
+
+    questions['annotations'] = qa_annotations
+    questions.pop('questions')
     with open(save_f, 'w') as f:
-        for idx in tqdm.tqdm(sampling_ids):
-            q_info, a_info = sorted_qs[idx], sorted_anns[idx]
-            qa_info = q_info | a_info
-            f.write(json.dumps(qa_info) + '\n')
-            tot_succeed += 1
+        json.dump(questions, f)
     return tot_succeed
 
 

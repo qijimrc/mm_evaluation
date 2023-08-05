@@ -29,7 +29,7 @@ import copy
 
 
 class VQA:
-    def __init__(self, annotation_file=None, question_file=None):
+    def __init__(self, annotation_file=None, question_file=None, annotation_dict=None):
         """
         Constructor of VQA helper class for reading and visualizing questions and answers.
         :param annotation_file (str): location of VQA annotation file
@@ -48,6 +48,10 @@ class VQA:
             questions = json.load(open(question_file, "r"))
             self.dataset = dataset
             self.questions = questions
+            self.createIndex()
+        elif annotation_dict is not None:
+            self.dataset = annotation_dict
+            self.questions = annotation_dict
             self.createIndex()
 
     def createIndex(self):
@@ -170,14 +174,17 @@ class VQA:
             for ans in ann["answers"]:
                 print("Answer %d: %s" % (ans["answer_id"], ans["answer"]))
 
-    def loadRes(self, resFile, quesFile, resDict=None):
+    def loadRes(self, resFile=None, quesFile=None, resDict=None, annotation_dict=None):
         """
         Load result file and return a result object.
         :param   resFile (str)     : file name of result file
         :return: res (obj)         : result api object
         """
         res = VQA()
-        res.questions = json.load(open(quesFile))
+        if annotation_dict is None:
+            res.questions = json.load(open(quesFile))
+        else:
+            res.questions = annotation_dict
         res.dataset["info"] = copy.deepcopy(self.questions["info"])
         res.dataset["task_type"] = copy.deepcopy(self.questions["task_type"])
         res.dataset["data_type"] = copy.deepcopy(self.questions["data_type"])

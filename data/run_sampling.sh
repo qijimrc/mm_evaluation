@@ -19,5 +19,5 @@ args+=("--vqav2_question_file $vqav2_questions --vqav2_ann_file $vqav2_anns --N 
 # Process
 for ((i=0; i<${#programs[@]}; i++)); do
     echo "processing ${programs[$i]} ..."
-    python ${programs[$i]} ${args[$i]}
+    python ${programs[$i]} ${args[$i]} &
 done

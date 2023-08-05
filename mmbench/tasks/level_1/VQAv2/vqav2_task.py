@@ -15,6 +15,11 @@ class VQAv2Task(BaseTask):
         self.img_dir = task_cfg.img_dir
         self.anns_paths = task_cfg.anns_paths
         self.metrics = task_cfg.metrics
+        
+        with open(self.anns_paths) as f:
+          ann = json.load(f)
+          ann.pop('annotations')
+          self.vqav2_info = ann
 
         super().__init__(self.img_dir, self.anns_paths)
 
@@ -27,20 +32,17 @@ class VQAv2Task(BaseTask):
             A list of examples instanced from the `Example` class.
         """
         examples = []
-        idx = 0
-        for ftype, path in anns_paths.items():
-            if ftype == 'question':
-              val_questions = {q['question_id']: q for q in json.load(open(path))['questions']}
-            elif ftype == 'annotation':
-              val_annotations = {a['question_id']: a for a in json.load(open(path))['annotations']}
-
-        for qid in val_questions:
-          ex = Example(task=self.task_name,
-                      idx=idx,
-                      img_path=os.path.join(img_dir, 'COCO_val2014_000000{}.jpg'.format(val_questions[qid]['image_id'])),
-                      question=val_questions[qid]['question'],
-                      answers=[ans['answer'] for ans in val_annotations[qid]['answers']]) # here ignored other answer informatio
-          examples.append(ex)
+        with open(anns_paths) as f:
+           for qa_info in json.load(f)['annotations']:
+              ex = Example(task=self.task_name,
+                          idx=qa_info['question_id'],
+                          img_path=os.path.join(img_dir, 'COCO_val2014_000000{}.jpg'.format(qa_info['image_id'])),
+                          question=qa_info['question'],
+                          answers=[ans['answer'] for ans in qa_info['answers']], # here ignored other answer information
+                          example_type=qa_info['question_type'],
+                          context='image_id=%s' % qa_info['image_id'] # used during evaluation
+              )
+              examples.append(ex)
         return examples
 
     def calc_scores(self, res_examples: List[Example], metrics: List[str]=['vqa_acc']) -> Dict:
@@ -55,7 +57,7 @@ class VQAv2Task(BaseTask):
         for name in metrics:
           metric_cls = Registry.get_metric_class(name)
           if name == 'vqa_acc':
-            scores = metric_cls.calc_scores(res_examples, self.anns_paths['question'], self.anns_paths['annotation'])
+            scores = metric_cls.calc_scores(res_examples, self.examples, self.vqav2_info)
           metrics_scores[name] = scores
         return scores
         
