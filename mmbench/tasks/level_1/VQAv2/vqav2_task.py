@@ -36,7 +36,7 @@ class VQAv2Task(BaseTask):
            for qa_info in json.load(f)['annotations']:
               ex = Example(task=self.task_name,
                           idx=qa_info['question_id'],
-                          img_path=os.path.join(img_dir, 'COCO_val2014_000000{}.jpg'.format(qa_info['image_id'])),
+                          img_path=os.path.join(img_dir, 'COCO_val2014_{}{}.jpg'.format(''.join(['0']*(12-len(str(qa_info['image_id'])))), qa_info['image_id'])),
                           question=qa_info['question'],
                           answers=[ans['answer'] for ans in qa_info['answers']], # here ignored other answer information
                           example_type=qa_info['question_type'],
