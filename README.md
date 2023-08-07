@@ -10,36 +10,19 @@ This benchmark evaluate the MLLMs's abilities from 3 levels:
     *Know the world basically: align vision to concepts*
     
     + recognize objects with conceptual classes and identify their spatial relationships
-        - Visual7W
     + recognize the positions of objects
-        - **Flickr30k-Entities (Visual Grounding)**
     + counting objects with conceptual classes
-        - TDIUC
     + describing the existence and activity in visual scene
-        - **NoCaps (Image Captioning)**
-        - **VQAv2**
-        - TextVQA
     + recognize composition of objects
-        - **GQA**
 
 - Fine-grained Specifically Understanding**
     
     *Know the world specifically: align vision to entities*
     
     + align objects to world entities
-        - **OK-VQA**
-        
-        e.g., a picture of Tsinghua is “Tsinghua”
-        
     + align composition of objects to world entities
-        - new dataset for solving **math problem?**
-        
-        e.g., formula
-        
     + align relationships between objects with semantic relations
-        - new dataset?
     + align visual scene with world actual events
-        - from **MOCHEG**
 
 - Associational Understanding
     
@@ -48,17 +31,13 @@ This benchmark evaluate the MLLMs's abilities from 3 levels:
     + associate objects with other similar objects that do not exist in current image
     + associate relations with other similar relations
     + associate composition of objects with other compositions
-        - **kosmos-iq50**
     + associate events with other similar events
     - metaphor, joke
-        - **HatefulMemes**
     + hallucination
-        - new datasets?
-        - knowledge hallucination from OK-VQA
-        - existence hallucination from TDIUC
-        - attribute hallucination from VAW
+        - knowledge hallucination
+        - existence hallucination
+        - attribute hallucination
     + Interactions in Embodied Environment
-        - **Language Table**
 
 ### Input/Output Format
 Each example in our benchmark is conformed with a unified format:
@@ -139,3 +118,14 @@ print(scores)
 ```Python
 python mmbench.evaluator --result_file 'Path/To/YourResult.json'
 ```
+
+
+### Leaderboard
+
+
+| **Model**                        | **level_1** |           |          |  **level_2**|           |          | **level_3** |           |          |  **AVG**      |
+|:-------------------------------- | :---------- | :---------|:---------| :---------- | :---------|:---------| :---------- | :---------|:---------| :------------ |
+|                                  |   *VQAv2*   |           |          |             |           |          |  *HalVQA*   |           |          |               |
+| BLIP2                            |             |           |          |             |           |          |             |           |          |               |
+| LLaVA                            |             |           |          |             |           |          |             |           |          |               |
+| VisualGLM-6B                     |             |           |          |             |           |          |             |           |          |               |
