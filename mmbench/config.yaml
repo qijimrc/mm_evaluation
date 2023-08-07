@@ -32,7 +32,7 @@ level_3:
 
   HalVQA:
     # description: Test the discriminative ability of the model for objects and attribuvisualglm-6btes
-    anns_paths: /nxchinamobile2/shared/img_datasets/hal_val_finetuned/hallucination_finetuned_small.csv
+    anns_paths: /nxchinamobile2/shared/img_datasets/hal_val_sample/hallucination_test_clean.csv
     img_dir: /nxchinamobile2/shared/img_datasets/hal_val_sample/evaluate_sample
     metrics: [hal_acc]
     eval: True
