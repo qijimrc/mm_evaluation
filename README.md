@@ -42,7 +42,7 @@ This benchmark evaluate the MLLMs's abilities from 3 levels:
 ### Input/Output Format
 Each example in our benchmark is conformed with a unified format:
 
-```
+```json
 {
     'task': // the task name
     'idx': // the example index
