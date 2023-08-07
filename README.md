@@ -114,6 +114,10 @@ For the sake of readability, some details have been omitted.
 
 We provide two types of usages for flexibility.
 
+### Install
+
+Install this repo from source.
+
 ### Incorporating the evaluation in your code
 
 ```Python
