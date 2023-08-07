@@ -10,7 +10,7 @@ __pycache__/
 .ipynb_checkpoints
 
 # project-specific
-data/*
+# data/*
 !README.md
 *.zip
 *.gz

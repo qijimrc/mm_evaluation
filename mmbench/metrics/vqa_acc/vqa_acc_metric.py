@@ -5,6 +5,7 @@ from mmbench.metrics.base_metric import BaseMetric
 from mmbench.metrics.vqa_acc.vqa import VQA
 from mmbench.metrics.vqa_acc.vqa_eval import VQAEval
 from typing import List, Dict
+import re
 
 
 
@@ -15,12 +16,11 @@ class VqaAccMetric(BaseMetric):
 
 
     @classmethod
-    def calc_scores(self, res_examples: List[Example], question_file: str, annotation_file: str) -> Dict:
+    def calc_scores(self, res_examples: List[Example], gt_examples: List[Example], vqav2_info: Dict) -> Dict:
         """ Use official VQA evaluation script to report metrics.
           Args:
             @res_examples: a list of result examples instanced by `Example` class.
-            @question_file: the official question file downloaded from VQAv2 portal.
-            @annotation_file: the official annotation file downloaded from VQAv2 portal.
+            @gt_examples: a list of ground truth examples.
           Return:
             the calculated metric scores.
         """
@@ -31,10 +31,28 @@ class VqaAccMetric(BaseMetric):
         for ex in res_examples:
             for ans in ex.answers:
                 result.append({'question_id': ex.idx, 'answer': ans})
+
+        vqav2_info['questions'] = []
+        vqav2_info['annotations'] = []
+        for ex in gt_examples:
+            vqav2_info['questions'].append({
+                'image_id': re.match(r'.*?image_id=(\d+).*', ex.context).group(1),
+                'question_id': ex.idx,
+                'question': ex.question,
+                'question_type': ex.example_type,
+            })
+            vqav2_info['annotations'].append({
+                'image_id': ex.example_type,
+                'question_id': ex.idx,
+                'question': ex.question,
+                'question_type': ex.example_type,
+                'answers': [{'answer': a, 'answer_confidence':'yes', 'answer_id':_i} for _i,a in enumerate(ex.answers)],
+                'answer_type': 'other',
+            })
         
         
-        vqa = VQA(annotation_file, question_file)
-        vqa_result = vqa.loadRes(result, question_file)
+        vqa = VQA(annotation_dict=vqav2_info)
+        vqa_result = vqa.loadRes(resDict=result, annotation_dict=vqav2_info)
 
         # create vqaEval object by taking vqa and vqaRes
         # n is precision of accuracy (number of places after decimal), default is 2
