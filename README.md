@@ -42,15 +42,15 @@ This benchmark evaluate the MLLMs's abilities from 3 levels:
 ### Input/Output Format
 Each example in our benchmark is conformed with a unified format:
 
-```json
+```python
 {
-    'task': // the task name
-    'idx': // the example index
-    'instruction': // task instruction
-    'img_path': // the vision path
-    'context': // the optinal context for input
-    'question': // the input question
-    'answers':  // the list of language answers
+    'task': # the task name
+    'idx': # the example index
+    'instruction': # task instruction
+    'img_path': # the vision path
+    'context': # the optinal context for input
+    'question': # the input question
+    'answers':  # the list of language answers
 }
 ```
 
