@@ -28,7 +28,7 @@ class BaseTask:
         return len(self.examples)
 
     @NotImplementedError
-    def to_examples(self, img_dir: str, anns_paths: List) ->List[Example]:
+    def to_examples(self, img_dir: str, anns_paths: Any) ->List[Example]:
         """ Convert annotations to canonical examples.
           Args:
             @img_dir: the root dir of vision source.
