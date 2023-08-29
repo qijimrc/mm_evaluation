@@ -46,7 +46,7 @@ class Flickr30kEntities(BaseTask):
                 sid += 1
         return examples
 
-    def calc_scores(self, res_examples: List[Example], metrics: List[str]=['vqa_acc']) -> Dict:
+    def calc_scores(self, res_examples: List[Example], metrics: List[str]=['grounding']) -> Dict:
         """ Calculate scores with specified metrics.
           Args:
             @examples:
@@ -57,8 +57,8 @@ class Flickr30kEntities(BaseTask):
         metrics_scores = {}
         for name in metrics:
           metric_cls = Registry.get_metric_class(name)
-          if name == 'vqa_acc':
-            scores = metric_cls.calc_scores(res_examples, self.examples, self.vqav2_info)
+          if name == 'grounding':
+            scores = metric_cls.calc_scores(res_examples, self.examples)
           metrics_scores[name] = scores
         return scores
         
