@@ -12,6 +12,14 @@ level_1:
     # whether to be used for current evaluation
     eval: True
 
+  Flickr30kEntities:
+    anns_paths: /nxchinamobile2/shared/instruction_data/evaluation/flickr3kent_sampled.jsonl
+    img_dir: /nxchinamobile2/shared/img_datasets/shikra/flickr30k-images
+    eval: true
+    metrics: [grounding]
+    n_samples: 500
+    seed: 71
+
   # visual7w:
   #   anns_paths: [path/to/annotations]
   #   img_dir: path/to/images
@@ -26,7 +34,7 @@ level_1:
 #     metrics: [vqa_acc, gpt3.5]
 #     eval: True
 
-level_3:
+# level_3:
 
   HalVQA:
     # description: Test the discriminative ability of the model for objects and attribuvisualglm-6btes

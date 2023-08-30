@@ -1,4 +1,4 @@
-# Copyright (c) Ming Ding, et al. in KEG, Tsinghua University.
+# Copyright (c) KEG, Tsinghua University.
 #
 # LICENSE file in the root directory of this source tree.
 
@@ -23,7 +23,7 @@ setup(
     entry_points={},
     packages=find_packages(),
     url="https://github.com/qijimrc/mm_evaluation",
-    author="Ji Qi, et al.",
+    author="THUKEG",
     author_email="",
     scripts={},
     include_package_data=True,
