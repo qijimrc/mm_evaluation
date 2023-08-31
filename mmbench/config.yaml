@@ -20,6 +20,14 @@ level_1:
     n_samples: 500
     seed: 71
 
+  TDIUC:
+    anns_paths: /nxchinamobile2/shared/instruction_data/evaluation/tdiuc_sampled.jsonl
+    img_dir: /nxchinamobile2/shared/img_datasets/MSCOCO/MSCOCO2014/val2014
+    eval: true
+    metrics: [vqa_acc]
+    n_samples: 500
+    seed: 71
+
   # visual7w:
   #   anns_paths: [path/to/annotations]
   #   img_dir: path/to/images
