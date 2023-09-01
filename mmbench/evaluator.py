@@ -15,13 +15,13 @@ from pprint import pprint
 
 
 class Evaluator:
-    def __init__(self, cfg_path: str=os.path.dirname(__file__)+'/config.yaml') -> None:
+    def __init__(self, cfg_path: str=os.path.dirname(__file__)+'/config.yaml', tasks=[]) -> None:
         
         self.default_cfg = OmegaConf.load(cfg_path)
         
         self.tasks = {
             name: Registry.get_task_class(name)(self.default_cfg[level][name])
-              for level in self.default_cfg.keys() for name in self.default_cfg[level]
+              for level in self.default_cfg.keys() for name in self.default_cfg[level] if tasks==[] or name in tasks
         }
 
 
