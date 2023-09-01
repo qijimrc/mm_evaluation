@@ -45,4 +45,4 @@ class Example:
        return Example(**example_js)
     
     def __str__(self) -> str:
-      return json.dumps(self.to_json())
+      return json.dumps(self.to_json(), ensure_ascii=False)

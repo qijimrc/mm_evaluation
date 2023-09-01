@@ -52,6 +52,23 @@ level_1:
     n_samples: 500
     seed: 71
 
+  ScienceQA:
+    anns_paths: /nxchinamobile2/shared/instruction_data/ScienceQA/data/scienceqa/problems.json
+    img_dir: /nxchinamobile2/shared/instruction_data/ScienceQA/test
+    eval: True
+    metrics: [acc]
+  
+  OCRVQA:
+    anns_paths: /nxchinamobile2/shared/instruction_data/MultiInstruct/raw/OCR-VQA/dataset.json
+    img_dir: /nxchinamobile2/shared/instruction_data/MultiInstruct/raw/OCR-VQA/amazon_images_folder
+    metrics: [acc]
+    eval: True
+
+  HalVQA:
+    anns_paths: /nxchinamobile2/shared/instruction_data/MultiInstruct/raw/hal_val_sample/data_test.jsonl
+    img_dir: /nxchinamobile2/shared/instruction_data/MultiInstruct/raw/hal_val_sample/images
+    metrics: [acc]
+    eval: True
 
   # visual7w:
   #   anns_paths: [path/to/annotations]
@@ -68,10 +85,3 @@ level_1:
 #     eval: True
 
 # level_3:
-
-#   HalVQA:
-#     # description: Test the discriminative ability of the model for objects and attribuvisualglm-6btes
-#     anns_paths: /nxchinamobile2/shared/img_datasets/hal_val_finetuned/hallucination_finetuned_small.csv
-#     img_dir: /nxchinamobile2/shared/img_datasets/hal_val_sample/evaluate_sample
-#     metrics: [hal_acc]
-#     eval: True
