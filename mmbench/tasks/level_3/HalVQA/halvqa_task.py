@@ -60,7 +60,7 @@ class HalVQATask(BaseTask):
                             example_type=value["eval_type"])
                 examples.append(ex)
                 sid += 1
-        print(f"Add {len(examples)} examples in all, and dropped {drop_num} examples.")
+        print(f"{self.task_name}: add {len(examples)} examples in all, and dropped {drop_num} examples.")
         return examples
 
     def calc_scores(self, res_examples: List[Example], metrics: List[str]=['vqa_acc']) -> Dict:

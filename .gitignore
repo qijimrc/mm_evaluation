@@ -20,3 +20,4 @@ cache/
 **build
 **dist
 **egg-info
+.vscode

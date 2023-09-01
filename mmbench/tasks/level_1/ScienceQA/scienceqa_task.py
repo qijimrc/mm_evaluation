@@ -19,7 +19,6 @@ class ScienceQA(BaseTask):
         self.anns_paths = task_cfg.anns_paths
         self.metrics = task_cfg.metrics
         self.all_eval_types = ["NAT", "SOC", "LAN", "TXT", "IMG", "NO", "G1-6", "G7-12"]
-        self.ex_type_sep = '-'
         
         super().__init__(self.img_dir, self.anns_paths)
         
@@ -97,7 +96,7 @@ class ScienceQA(BaseTask):
                               context=value["hint"])
                   examples.append(ex)
                   sid += 1
-        print(f"Add {len(examples)} examples in all, and dropped {drop_num} examples.")
+        print(f"{self.task_name}: add {len(examples)} examples in all, and dropped {drop_num} examples.")
         return examples
 
     def calc_scores(self, res_examples: List[Example], metrics: List[str]=['acc']) -> Dict:
@@ -117,4 +116,4 @@ class ScienceQA(BaseTask):
             metric_cls = Registry.get_metric_class(name)
             scores = metric_cls.calc_scores(c_res_example, c_ans_example)
             metrics_scores[eval_type][name] = scores
-        return scores
+        return metrics_scores
