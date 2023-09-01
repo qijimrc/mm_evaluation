@@ -122,11 +122,3 @@ if __name__ == '__main__':
     dataloader = evaluator.get_single_dataloader("OCRVQA")
     print(str(dataloader[0]))
     scores = evaluator.evaluate_examples(dataloader)
-
-    dataloader = evaluator.get_single_dataloader("ScienceQA")
-    print(str(dataloader[0]))
-    scores = evaluator.evaluate_examples(dataloader)
-    
-    dataloader = evaluator.get_single_dataloader("HalVQA")
-    print(str(dataloader[0]))
-    scores = evaluator.evaluate_examples(dataloader)
