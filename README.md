@@ -107,7 +107,7 @@ model = YourModel # your model
 evaluator = Evaluator()
 predictions = []
 for ex in evaluator.get_mixed_dataloader():
-    ans = model(ex.vis, ex.context, ex.question)
+    ans = model(ex.img_path, ex.context, ex.question)
     predictions.append(Example(task=ex.task, idx=ex.idx, answers=[ans]))
 scores = evaluator.evaluate_examples(predictions)
 print(scores)

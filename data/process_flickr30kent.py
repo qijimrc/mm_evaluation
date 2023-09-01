@@ -13,7 +13,7 @@ with open('templates.json') as f:
     templates = json.load(f)
     rec_template = templates['REC']
 
-def build_qa_dataset(anns_dir, sents_dir, split_path, img_dir, n_samples=None, save_f='flickr3kent_sampled.json'):
+def build_qa_dataset(anns_dir, sents_dir, split_path, img_dir, n_samples=-1, save_f='flickr3kent_sampled.json'):
 
     with open(split_path) as f:
         split = f.readlines()
@@ -75,7 +75,7 @@ def build_qa_dataset(anns_dir, sents_dir, split_path, img_dir, n_samples=None, s
                     }
                     ret_examples.append(ex)
 
-    if n_samples is not None:
+    if n_samples != -1:
         ret_examples = ret_examples[:n_samples]
 
     if save_f:
@@ -95,7 +95,7 @@ if __name__ == '__main__':
     parser.add_argument('--split_path', default='/nxchinamobile2/shared/instruction_data/flickr30k_entities/val.txt')
     parser.add_argument('--img_dir', default='/nxchinamobile2/shared/img_datasets/shikra/flickr30k-images')
     parser.add_argument('--seed', type=int, default=9271)
-    parser.add_argument('--N', type=int, default=500, help='The number of examples for sampling.')
+    parser.add_argument('--N', type=int, default=-1, help='The number of examples for sampling.')
     parser.add_argument('--save_file', default='/nxchinamobile2/shared/instruction_data/evaluation/flickr3kent_sampled.jsonl')
     args = parser.parse_args()
 

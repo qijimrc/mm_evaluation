@@ -18,6 +18,38 @@ level_1:
     eval: true
     metrics: [grounding]
     n_samples: 500
+    seed: 9271
+
+  RefCOCO:
+    anns_paths: /nxchinamobile2/shared/instruction_data/evaluation/refcoco_sampled.jsonl
+    img_dir: /nxchinamobile2/shared/img_datasets/MSCOCO/MSCOCO2014/train2014
+    eval: true
+    metrics: [grounding]
+    n_samples: 500
+    seed: 9271
+
+  RefCOCOp:
+    anns_paths: /nxchinamobile2/shared/instruction_data/evaluation/refcoco+_sampled.jsonl
+    img_dir: /nxchinamobile2/shared/img_datasets/MSCOCO/MSCOCO2014/train2014
+    eval: true
+    metrics: [grounding]
+    n_samples: 500
+    seed: 9271
+
+  RefCOCOg:
+    anns_paths: /nxchinamobile2/shared/instruction_data/evaluation/refcocog_sampled.jsonl
+    img_dir: /nxchinamobile2/shared/img_datasets/MSCOCO/MSCOCO2014/train2014
+    eval: true
+    metrics: [grounding]
+    n_samples: 500
+    seed: 9271
+
+  TDIUC:
+    anns_paths: /nxchinamobile2/shared/instruction_data/evaluation/tdiuc_sampled.jsonl
+    img_dir: /nxchinamobile2/shared/img_datasets/MSCOCO/MSCOCO2014/val2014
+    eval: true
+    metrics: [vqa_acc]
+    n_samples: 500
     seed: 71
 
   ScienceQA:
