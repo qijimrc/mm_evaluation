@@ -119,5 +119,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     evaluator = Evaluator()
-    scores = evaluator.evaluate_files(args.result_file)
+    dataloader = evaluator.get_single_dataloader("HalVQA")
+    print(str(dataloader[0]))
+    scores = evaluator.evaluate_examples(dataloader)
     print(scores)
