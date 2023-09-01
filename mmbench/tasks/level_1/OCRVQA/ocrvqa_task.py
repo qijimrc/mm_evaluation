@@ -68,12 +68,12 @@ class OCRVQA(BaseTask):
           metric_cls = Registry.get_metric_class(name)
           scores = metric_cls.calc_scores(res_examples, self.examples)
           metrics_scores["all"][name] = scores
-        # for eval_type in self.all_eval_types:
-        #   c_res_example = [ex for ex in res_examples if ex.example_type == eval_type]
-        #   c_ans_example = [ex for ex in self.examples if ex.example_type == eval_type]
-        #   metrics_scores[eval_type] = {}
-        #   for name in metrics:
-        #     metric_cls = Registry.get_metric_class(name)
-        #     scores = metric_cls.calc_scores(c_res_example, c_ans_example)
-        #     metrics_scores[eval_type][name] = scores
+        for eval_type in self.all_eval_types:
+          c_res_example = [ex for ex in res_examples if ex.example_type == eval_type]
+          c_ans_example = [ex for ex in self.examples if ex.example_type == eval_type]
+          metrics_scores[eval_type] = {}
+          for name in metrics:
+            metric_cls = Registry.get_metric_class(name)
+            scores = metric_cls.calc_scores(c_res_example, c_ans_example)
+            metrics_scores[eval_type][name] = scores
         return metrics_scores
