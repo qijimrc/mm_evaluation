@@ -11,9 +11,8 @@ class Acc(BaseMetric):
         pass
 
     @classmethod
-    def calc_scores(cls, res_examples: List[Example], ans_examples: List[Example]) -> Dict:
-        scores = {}
-        true_results = [ex.answers for ex in ans_examples]
-        pred_results = [ex.answers for ex in res_examples]
-        scores['acc'] = accuracy_score(true_results, pred_results)
-        return scores
+    def calc_scores(cls, trues, preds) -> Dict:
+        assert len(trues) == len(preds)
+        if len(trues) == 0:
+            return 0.0
+        return accuracy_score(trues, preds)

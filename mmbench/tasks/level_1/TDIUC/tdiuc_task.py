@@ -9,7 +9,7 @@ import json
 
 
 
-@Registry.register_task('TDIUC')
+# @Registry.register_task('TDIUC')
 class TDIUCTask(BaseTask):
     def __init__(self, task_cfg):
 

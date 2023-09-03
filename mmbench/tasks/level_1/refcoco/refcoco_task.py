@@ -7,7 +7,7 @@ import json
 
 
 
-@Registry.register_task('RefCOCO')
+# @Registry.register_task('RefCOCO')
 class RefCOCO(BaseTask):
     def __init__(self, task_cfg):
 
@@ -66,7 +66,7 @@ class RefCOCO(BaseTask):
 
 
 
-@Registry.register_task('RefCOCOp')
+# @Registry.register_task('RefCOCOp')
 class RefCOCO(BaseTask):
     def __init__(self, task_cfg):
 
@@ -123,7 +123,7 @@ class RefCOCO(BaseTask):
 
 
 
-@Registry.register_task('RefCOCOg')
+# @Registry.register_task('RefCOCOg')
 class RefCOCO(BaseTask):
     def __init__(self, task_cfg):
 

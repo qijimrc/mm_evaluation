@@ -9,35 +9,45 @@ home_env:
 tasks:
   level_1:
     ScienceQA:
-      data:
-        train: ScienceQA/web_dataset/train
-        val: ScienceQA/web_dataset/val
-        test:  
       metrics: [acc]
-      params:
-        checkpoint_activations: true
+      data:
+        train_data: ScienceQA/csv_files/train.csv
+        valid_data: ScienceQA/csv_files/val.csv
+        test_data: ScienceQA/csv_files/test.csv
+      need_finetune: true
+      need_evaluate: true
+      finetune_params:
+        mode: "finetune"
+        max_source_length: 1024
+        max_target_length: 256
+        log_interval: 20
         train_iters: 2000
         resume_dataloader: true
-        distributed_backend: nccl
         lr_decay_style: cosine
         warmup: 0.02
-        save_interval: 2000
+        save_interval: 500
+        split: "1"
+        do_valid: false
+        # eval_iters: 20
+        eval_interval: 500
         strict_eval: true
-        # save: $ME_HOME
-        split: 1
         eval_batch_size: 10
-        lr: 100
-        fp16: true
-        iterable_dataset: true
+        do_test: false
+      eval_params:
+        mode: "inference"
+        strict_eval: true
+        top_k: 10
+        top_p: 0.4
+        temperature: 0.8
     
-  level_2:
+  # level_2:
 
-  level_3:
-    HalVQA:
-      data:
-        train:
-        val:
-        test: 
-      metrics: [acc]
-      processor: 
+  # level_3:
+    # HalVQA:
+    #   data:
+    #     train:
+    #     val:
+    #     test: 
+    #   metrics: [acc]
+    #   params: 
       

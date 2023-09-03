@@ -1,7 +1,7 @@
 import io
 import os
 import json
-import webdataset as wds
+import pandas as pd
 
 from PIL import Image
 from tqdm import tqdm
@@ -32,11 +32,11 @@ def get_eval_type_in_grade(grade):
         return ["G7-12"]
     raise ValueError("Invalid grade: %s" % grade)
 
-def process_data(raw_dir, save_dir, img_dir, mode):
+def process_data(root_dir, save_dir, img_dir, mode):
     if not os.path.exists(save_dir):
         os.mkdir(save_dir)
-    drop_num, result_tar, tar_id, item_num = 0, [], 0, 0
-    with open(os.path.join(raw_dir, "data/scienceqa/problems.json"), "r") as fp:
+    drop_num, results, item_num = 0, [], 0
+    with open(os.path.join(root_dir, "ScienceQA/raw/data/scienceqa/problems.json"), "r") as fp:
         data = json.load(fp)
         for key, value in tqdm(data.items()):
             if value["split"] != mode:
@@ -46,43 +46,33 @@ def process_data(raw_dir, save_dir, img_dir, mode):
             ex_types.extend(get_eval_type_in_subject(value["subject"]))
             ex_types.extend(train_type)
             ex_types.extend(get_eval_type_in_grade(value["grade"]))
-            c_tar = {
-                "__key__": "%06d" % item_num,
-                "prompt": generate_prompt_in_multi_choice(value["choices"], value["question"]),
-                "answer": chr(ord('A') + value["answer"]),
-                "context": value["hint"],
-                "ttype": '$$$'.join(train_type),
-                "etype": '$$$'.join(ex_types)
-            }
-            image_path = None
+            image_path = ""
             if value["image"]:
                 image_path = os.path.join(img_dir, key, value["image"])
-                if not os.path.exists(image_path):
+                if not os.path.exists(os.path.join(root_dir, image_path)):
                     print(f"image not found: {image_path}, will be skipped.")
                     drop_num += 1
                     continue
-                img = Image.open(image_path).convert('RGB')
-                img_bytes = io.BytesIO()
-                img.save(img_bytes, format="jpeg")
-                c_tar["jpg"] = img_bytes.getvalue()
-            result_tar.append(c_tar)
+            context = value['hint'] if value['hint'] else ""
+            for ttype in train_type:
+                results.append([item_num, # question_id
+                                image_path, # image_path
+                                generate_prompt_in_multi_choice(value["choices"], value["question"]), # prompt
+                                chr(ord('A') + value["answer"]), # answer
+                                context, # context
+                                ttype, # ttype,
+                                '$$$'.join(ex_types) # etype
+                                ])
             item_num += 1
-            if len(result_tar) >= 1000:
-                with wds.TarWriter(os.path.join(save_dir, f"{mode}_scienceqa_%06d.tar" %(tar_id)), "w") as tar:
-                    for res in result_tar:
-                        tar.write(res)
-                result_tar = []
-                tar_id += 1
-        if len(result_tar) > 0:
-            with wds.TarWriter(os.path.join(save_dir, f"{mode}_scienceqa_%06d.tar" %(tar_id)), "w") as tar:
-                for res in result_tar:
-                    tar.write(res)
+            
+        df = pd.DataFrame(results, columns=["question_id", "image_path", "prompt", "answer", "context", "ttype", "etype"])
+        df.to_csv(os.path.join(save_dir, f"{mode}.csv"), index=False)
         print(f"Save: {item_num}. Drop: {drop_num}")
 
 if __name__ == "__main__":
-    raw_dir = "/nxchinamobile2/shared/mmbench_datasets/ScienceQA/raw"
-    save_dir = "/nxchinamobile2/shared/mmbench_datasets/ScienceQA/web_dataset"
+    root_dir = "/nxchinamobile2/shared/mmbench_datasets"
+    save_dir = os.path.join(root_dir, "ScienceQA/csv_files")
     for mode in ["train", "val", "test"]:
-        img_dir = os.path.join(raw_dir, mode)
-        tmp_save_dir = os.path.join(save_dir, mode)
-        process_data(raw_dir, tmp_save_dir, img_dir, mode)
+        print(f"Start {mode}.")
+        img_dir = os.path.join("ScienceQA/raw", mode)
+        process_data(root_dir, save_dir, img_dir, mode)

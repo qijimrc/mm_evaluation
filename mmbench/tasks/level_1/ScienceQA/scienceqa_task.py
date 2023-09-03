@@ -1,105 +1,72 @@
-from typing import Any, Dict, List
 import os
 import json
+import random
+import pandas as pd
+from io import BytesIO
+from PIL import Image
+from typing import Any, Dict, List
+from functools import partial
+from torch.utils.data import Dataset
+from sat.helpers import print_rank0
+from sat.data_utils.webds import SimpleDistributedWebDataset
 
 from mmbench.common.registry import Registry
 from mmbench.common.example import Example
 from mmbench.tasks.base_task import BaseTask
-from mmbench.utils.utils import is_chinese
+from mmbench.common.utils import is_chinese
 
-PROMPT_EN = "Please choose the correct option for the above question from the following options: "
-PROMPT_ZH = "请从以下几个选项中选出上述问题的正确答案："
+class ScienceqaDataset(Dataset):
+    def __init__(self, path, args, mt, mode, **kwargs):
+        super().__init__()
+        self.mt = mt
+        self.mode = mode
+        self.data = pd.read_csv(path)
+        self.data_home_dir = args.data_home_dir
+        self.img_pad = os.path.join(os.path.dirname(__file__), "no_img.png")
+
+    def __getitem__(self, index):
+        c_data = self.data.iloc[index]
+        ttype = c_data["ttype"]
+        ret = {
+            "question_id": int(c_data["question_id"]),
+            "label_text": str(c_data["answer"])
+        }
+        # img
+        if ttype == "IMG":
+            image_path = os.path.join(self.data_home_dir, c_data["image_path"])
+            img = Image.open(image_path).convert('RGB')
+        else:
+            img = Image.open(self.img_pad).convert('RGB')
+        img_dict = {'vision': self.mt.image_processor(img)}
+        if self.mt.cross_image_processor:
+            img_dict.update({'cross': self.mt.cross_image_processor(img)})
+        ret.update(img_dict)
+        # text
+        prompt = c_data["prompt"]
+        if ttype == "TXT":
+            context = c_data["context"]
+            prompt = f"Context: {context}\n" + prompt
+        prompt = self.mt.text_processor.history_to_prompt([], prompt, add_eoi_first=True)
+        text_dict = self.mt.text_processor(c_data["answer"], prompt)
+        ret.update(text_dict)
+        return ret
+    
+    def __len__(self):
+        return len(self.data)
 
 @Registry.register_task('ScienceQA')
 class ScienceQA(BaseTask):
-    def __init__(self, task_cfg):
-
+    def __init__(self, task_cfg, custom_functions, **kw_args):
         self.task_name = 'ScienceQA'
-        self.img_dir = task_cfg.img_dir
-        self.anns_paths = task_cfg.anns_paths
-        self.metrics = task_cfg.metrics
-        self.all_eval_types = ["NAT", "SOC", "LAN", "TXT", "IMG", "NO", "G1-6", "G7-12"]
-        
-        super().__init__(self.img_dir, self.anns_paths)
-        
-
-    def generate_prompt_in_multi_choice(self, choices, question):
-        prompt = question + "\n" + (PROMPT_ZH if is_chinese(question) else PROMPT_EN) + "\n"
-        start_op = 'A'
-        for item in choices:
-            prompt += f'{start_op}: {item}\n'
-            start_op = chr(ord(start_op) + 1)
-        return prompt
-      
-    def _get_eval_type_in_subject(self, subject):
-        topic_map = {
-          "language science": "LAN",
-          "natural science": "NAT",
-          "social science": "SOC"
-        }
-        return [topic_map[subject]]
-      
-    def _get_eval_type_in_context(self, image, hint):
-        ret = []
-        if image is None and len(hint) <= 0:
-          return ["NO"]
-        if image:
-          ret.append("IMG")
-        if len(hint) > 0:
-          ret.append("TXT")
-        return ret
+        self.ttypes = ["NO", "IMG", "TXT"]
+        self.etypes = ["LAN", "NAT", "SOC", "G1-6", "G7-12"]
+        super().__init__(task_cfg, custom_functions, **kw_args)
     
-    def _get_eval_type_in_grade(self, grade):
-        if grade in set(["grade1", "grade2", "grade3", "grade4", "grade5", "grade6"]):
-            return ["G1-6"]
-        if grade in set(["grade7", "grade8", "grade9", "grade10", "grade11", "grade12"]):
-            return ["G7-12"]
-        raise ValueError("Invalid grade: %s" % grade)
+    def create_dataset_function(self, mt, path, args):
+        dataset = ScienceqaDataset(path, args, mt, mode=self.mode)
+        return dataset
 
-    def to_examples(self, img_dir: str, anns_paths: str) ->List[Example]:
-        """ Convert annotations to canonical examples.
-          Args:
-            @img_dir: the root dir of vision source.
-            @anns_paths: the paths of annotation files.
-          Return:
-            A list of examples instanced from the `Example` class.
-        """
-        examples = []
-        
-        drop_num = 0
-        with open(anns_paths) as fp:
-            sid = 0
-            data = json.load(fp)
-            for key, value in data.items():
-              if value["split"] != "test":
-                continue
-              image_path = None
-              if value["image"]:
-                  image_path = os.path.join(self.img_dir, key, value["image"])
-                  if not os.path.exists(image_path):
-                    print(f"image not found: {image_path}, will be skipped.")
-                    drop_num += 1
-                    continue
-              # get example type list
-              ex_types = []
-              ex_types.extend(self._get_eval_type_in_subject(value["subject"]))
-              ex_types.extend(self._get_eval_type_in_context(value["image"], value["hint"]))
-              ex_types.extend(self._get_eval_type_in_grade(value["grade"]))
-              # add example
-              for ex_type in ex_types:
-                  ex = Example(task=self.task_name,
-                              idx=sid,
-                              img_path=image_path,
-                              question=self.generate_prompt_in_multi_choice(value["choices"], value["question"]),
-                              answers=chr(ord('A') + value["answer"]),
-                              example_type=ex_type,
-                              context=value["hint"])
-                  examples.append(ex)
-                  sid += 1
-        print(f"{self.task_name}: add {len(examples)} examples in all, and dropped {drop_num} examples.")
-        return examples
-
-    def calc_scores(self, res_examples: List[Example], metrics: List[str]=['acc']) -> Dict:
+    def calc_scores(self, args, results_total, metrics: List[str]=['acc']) -> Dict:
         """ Calculate scores with specified metrics.
           Args:
             @examples:
@@ -107,13 +74,26 @@ class ScienceQA(BaseTask):
           Return:
             A result dict keyed by metrics names.
         """
+        if self.mode == "finetune":
+            data_df = pd.read_csv(args.valid_data[0], dtype=str)
+        elif self.mode == "test":
+            data_df = pd.read_csv(args.test_data[0], dtype=str)
         metrics_scores = {}
-        for eval_type in self.all_eval_types:
-          c_res_example = [ex for ex in res_examples if ex.example_type == eval_type]
-          c_ans_example = [ex for ex in self.examples if ex.example_type == eval_type]
-          metrics_scores[eval_type] = {}
-          for name in metrics:
-            metric_cls = Registry.get_metric_class(name)
-            scores = metric_cls.calc_scores(c_res_example, c_ans_example)
-            metrics_scores[eval_type][name] = scores
+        question_ids, preds, labels = results_total["question_ids"], results_total["preds"], results_total["labels"]
+        res_df = pd.DataFrame({"question_ids": question_ids, "preds": preds, "labels": labels})
+        # remove duplicates
+        res_df = res_df.drop_duplicates(subset=["question_ids"])
+        # compute scores
+        metric_cls = Registry.get_metric_class('acc')
+        metrics_scores[f"Avg"] = metric_cls.calc_scores(res_df["labels"], res_df["preds"])
+        for ttype in self.ttypes: 
+            c_df = data_df[data_df["ttype"] == ttype].drop_duplicates(subset=["question_id"])
+            c_df = res_df[res_df["question_ids"].isin(c_df["question_id"])]
+            metrics_scores[ttype] = metric_cls.calc_scores(c_df["labels"], c_df["preds"])
+        # etypes
+        img_df = data_df[data_df["ttype"] == "IMG"].drop_duplicates(subset=["question_id"])
+        for etype in self.etypes:
+            c_qids = [row["question_id"] for i, row in img_df.iterrows() if etype in row["etype"]]
+            c_df = res_df[res_df["question_ids"].isin(set(c_qids))]
+            metrics_scores[etype] = metric_cls.calc_scores(c_df["labels"], c_df["preds"])
         return metrics_scores

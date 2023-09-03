@@ -6,12 +6,12 @@ import pandas as pd
 from mmbench.common.registry import Registry
 from mmbench.common.example import Example
 from mmbench.tasks.base_task import BaseTask
-from mmbench.utils.utils import is_chinese
+from mmbench.common.utils import is_chinese
 
 PROMPT_EN = "Please choose the correct option for the above question from the following options: "
 PROMPT_ZH = "请从以下几个选项中选出上述问题的正确答案："
 
-@Registry.register_task('HalVQA')
+# @Registry.register_task('HalVQA')
 class HalVQATask(BaseTask):
     def __init__(self, task_cfg):
 

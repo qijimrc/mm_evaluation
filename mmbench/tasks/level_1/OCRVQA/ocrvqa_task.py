@@ -6,7 +6,7 @@ from mmbench.common.registry import Registry
 from mmbench.common.example import Example
 from mmbench.tasks.base_task import BaseTask
 
-@Registry.register_task('OCRVQA')
+# @Registry.register_task('OCRVQA')
 class OCRVQA(BaseTask):
     def __init__(self, task_cfg):
 

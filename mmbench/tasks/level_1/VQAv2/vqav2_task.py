@@ -7,7 +7,7 @@ import json
 
 
 
-@Registry.register_task('VQAv2')
+# @Registry.register_task('VQAv2')
 class VQAv2Task(BaseTask):
     def __init__(self, task_cfg):
 
