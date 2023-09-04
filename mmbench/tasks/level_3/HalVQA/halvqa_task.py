@@ -1,85 +1,71 @@
 import os
-import jsonlines
-from typing import Dict, List
 import pandas as pd
+from PIL import Image
+from typing import Dict, List
+from torch.utils.data import Dataset
+from sat.helpers import print_rank0
 
 from mmbench.common.registry import Registry
-from mmbench.common.example import Example
 from mmbench.tasks.base_task import BaseTask
-from mmbench.common.utils import is_chinese
 
-PROMPT_EN = "Please choose the correct option for the above question from the following options: "
-PROMPT_ZH = "请从以下几个选项中选出上述问题的正确答案："
+class HalVqaDataset(Dataset):
+    def __init__(self, path, args, mt, mode, **kwargs):
+        super().__init__()
+        self.mt = mt
+        self.mode = mode
+        self.data = pd.read_csv(path)
+        self.data_home_dir = args.data_home_dir
 
-# @Registry.register_task('HalVQA')
+    def __getitem__(self, index):
+        c_data = self.data.iloc[index]
+        ret = {
+            "question_id": str(c_data["question_id"]),
+            "label_text": str(c_data["answer"])
+        }
+        # img
+        image_path = os.path.join(self.data_home_dir, c_data["image"])
+        img = Image.open(image_path).convert('RGB')
+        img_dict = {'vision': self.mt.image_processor(img)}
+        if self.mt.cross_image_processor:
+            img_dict.update({'cross': self.mt.cross_image_processor(img)})
+        ret.update(img_dict)
+        # text
+        prompt = c_data["prompt"]
+        prompt = self.mt.text_processor.history_to_prompt([], prompt, add_eoi_first=True)
+        text_dict = self.mt.text_processor(c_data["answer"], prompt)
+        ret.update(text_dict)
+        return ret
+    
+    def __len__(self):
+        return len(self.data)
+
+@Registry.register_task('HalVQA')
 class HalVQATask(BaseTask):
-    def __init__(self, task_cfg):
-
+    def __init__(self, task_cfg, custom_functions, **kw_args):
         self.task_name = 'HalVQA'
-        self.img_dir = task_cfg.img_dir
-        self.anns_paths = task_cfg.anns_paths
-        self.metrics = task_cfg.metrics
-        self.example_types = ["existence", "color", "position"]
+        self.etypes = ["existence", "color", "position"]
+        super().__init__(task_cfg, custom_functions, **kw_args)
 
-        super().__init__(self.img_dir, self.anns_paths)
+    def create_dataset_function(self, mt, path, args):
+        dataset = HalVqaDataset(path, args, mt, mode=self.mode)
+        return dataset
 
-    def generate_prompt_in_multi_choice(self, choices, question):
-        prompt = question + "\n" + (PROMPT_ZH if is_chinese(question) else PROMPT_EN) + "\n"
-        start_op = 'A'
-        for item in choices:
-            prompt += f'{start_op}: {item}\n'
-            start_op = chr(ord(start_op) + 1)
-        return prompt
-
-    def to_examples(self, img_dir: str, anns_paths: List) ->List[Example]:
-        """ Convert annotations to canonical examples.
-          Args:
-            @img_dir: the root dir of vision source.
-            @anns_paths: the paths of annotation files.
-          Return:
-            A list of examples instanced from the `Example` class.
-        """
-        examples = []
-        
-        drop_num = 0
-        with jsonlines.open(anns_paths, 'r') as fp:
-            sid = 0
-            for value in fp:
-                image_path = os.path.join(self.img_dir, value["image"])
-                if not os.path.exists(image_path):
-                  print(f"image not found: {image_path}, will be skipped.")
-                  drop_num += 1
-                  continue
-                assert value["eval_type"] in self.example_types
-                # get example type list
-                ex = Example(task=self.task_name,
-                            idx=sid,
-                            img_path=image_path,
-                            question=self.generate_prompt_in_multi_choice(value["choices"], value["question"]),
-                            answers=chr(ord('A') + value["choices"].index(value["answer"])),
-                            example_type=value["eval_type"])
-                examples.append(ex)
-                sid += 1
-        print(f"{self.task_name}: add {len(examples)} examples in all, and dropped {drop_num} examples.")
-        return examples
-
-    def calc_scores(self, res_examples: List[Example], metrics: List[str]=['vqa_acc']) -> Dict:
-        """ Calculate scores with specified metrics.
-          Args:
-            @examples:
-            @metrics:
-          Return:
-            A result dict keyed by metrics names.
-        """
+    def calc_scores(self, args, results_total, metrics: List[str]=['acc']) -> Dict:
+        if self.mode == "finetune":
+            data_df = pd.read_csv(args.valid_data[0], dtype=str)
+        elif self.mode == "test":
+            data_df = pd.read_csv(args.test_data[0], dtype=str)
         metrics_scores = {}
-        for ext in self.example_types:
-            cur_res_examples = [ex for ex in res_examples if ex.example_type == ext]
-            if len(cur_res_examples) > 0:
-              cur_ans_examples = [ex for ex in self.examples if ex.example_type == ext]
-              metrics_scores[ext] = {}
-              for name in metrics:
-                metric_cls = Registry.get_metric_class(name)
-                scores = metric_cls.calc_scores(cur_res_examples, cur_ans_examples)
-                metrics_scores[ext][name] = scores
+        question_ids, preds, labels = results_total["question_ids"], results_total["preds"], results_total["labels"]
+        res_df = pd.DataFrame({"question_ids": question_ids, "preds": preds, "labels": labels})
+        # remove duplicates
+        res_df = res_df.drop_duplicates(subset=["question_ids"])
+        # compute scores
+        metric_cls = Registry.get_metric_class('acc')
+        metrics_scores["Total"] = metric_cls.calc_scores(res_df["labels"], res_df["preds"])
+        for ext in self.etypes:
+            c_df = data_df[data_df["eval_type"] == ext].drop_duplicates(subset=["question_id"])
+            c_df = res_df[res_df["question_ids"].isin(c_df["question_id"])]
+            metrics_scores[ext] = metric_cls.calc_scores(c_df["labels"], c_df["preds"])
         return metrics_scores
         

@@ -15,4 +15,5 @@ class Acc(BaseMetric):
         assert len(trues) == len(preds)
         if len(trues) == 0:
             return 0.0
-        return accuracy_score(trues, preds)
+        acc = accuracy_score(trues, preds)
+        return round(acc, 4)

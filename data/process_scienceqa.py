@@ -29,7 +29,7 @@ def get_eval_type_in_grade(grade):
     if grade in set(["grade1", "grade2", "grade3", "grade4", "grade5", "grade6"]):
         return ["G1-6"]
     if grade in set(["grade7", "grade8", "grade9", "grade10", "grade11", "grade12"]):
-        return ["G7-12"]
+        return ["G7-1G7-122"]
     raise ValueError("Invalid grade: %s" % grade)
 
 def process_data(root_dir, save_dir, img_dir, mode):

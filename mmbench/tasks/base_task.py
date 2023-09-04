@@ -28,6 +28,7 @@ class BaseTask(object):
         self.task_cfg = task_cfg
         self.metrics = task_cfg.metrics
         self.need_finetune = task_cfg.get('need_finetune', False)
+        self.need_evaluate = task_cfg.get('need_evaluate', False)
         self.custom_functions = custom_functions
     
     def custom_func(func):
@@ -54,7 +55,7 @@ class BaseTask(object):
         if hasattr(self.task_cfg, "data"):
             for key, value in self.task_cfg.data.items():
                 tmp_path = os.path.join(args.data_home_dir, value)
-                assert os.path.exists(tmp_path), f"cannot found {tmp_path}"
+                # assert os.path.exists(tmp_path), f"cannot found {tmp_path}"
                 merge_args[key] = [tmp_path]
         return argparse.Namespace(**merge_args)
 
@@ -147,13 +148,14 @@ class BaseTask(object):
 
         return loss, {'loss': loss}
     
-    def chat(self, model, tokenizer, text_processor_inference, tokens,
-         max_length: int = 1300, num_beams=5, top_p=0.95, top_k=0, temperature=0.8, **kwargs):
+    def chat(self, model, tokenizer, text_processor_inference, tokens, args, **kwargs):
+        if self.custom_functions.get("chat", None):
+            return self.custom_functions["chat"](model, tokenizer, text_processor_inference, tokens, args, **kwargs)
         inputs = tokens.to(model.parameters().__next__().device)[0]
         seq = torch.cat(
-            [inputs, torch.tensor([-1] * (max_length - len(inputs)), device=inputs.device)], dim=0
+            [inputs, torch.tensor([-1] * (args.max_source_length + args.max_target_length - len(inputs)), device=inputs.device)], dim=0
         )
-        strategy = BaseStrategy(temperature=temperature, top_p=0.4, top_k=1, end_tokens=[tokenizer.eos_token_id])
+        strategy = BaseStrategy(temperature=args.temperature, top_p=args.top_p, top_k=args.top_k, end_tokens=[tokenizer.eos_token_id])
         # strategy = BeamSearchStrategy(temperature=temperature, top_p=top_p, top_k=top_k, end_tokens=[tokenizer.eos_token_id],
         #                               num_beams=num_beams, consider_end=True)
         get_func = text_processor_inference.get_func(None, image_rope_mask=kwargs['image_rope_mask'])
@@ -195,7 +197,7 @@ class BaseTask(object):
         question_id = data_b.pop('question_id')
 
         model.add_mixin('auto-regressive', CachedAutoregressiveMixin())
-        outputs = self.chat(model, mt.tokenizer, mt.text_processor_inference, tokens, **data_b)[0][context_len:]
+        outputs = self.chat(model, mt.tokenizer, mt.text_processor_inference, tokens, args, **data_b)[0][context_len:]
         model.del_mixin('auto-regressive')
 
         outputs = outputs.unsqueeze(0)
@@ -204,15 +206,13 @@ class BaseTask(object):
         return torch.tensor(0, device=outputs.device), metrics
     
     def do_finetune(self, args, mt):
-        self.mode = "finetune"
         finetune_args = self.update_params(args, param_type="finetune_params")
-        if 'experiment_name' not in finetune_args:
-            finetune_args.experiment_name = f'{self.task_name}'
-        else:
-            finetune_args.experiment_name = f'{args.experiment_name}_{self.task_name}'
+        finetune_args = self.update_params(args, param_type="eval_params")
         if not ("train_data" in finetune_args and finetune_args.train_data):
             raise ValueError(f"[{self.task_name}]: train_data is required for finetuning.")
         # train
+        self.mode = "finetune"
+        finetune_args.mode = "finetune"
         training_main(finetune_args,
                       model_cls=mt.model,
                       forward_step_function=self.forward_step,
@@ -222,14 +222,22 @@ class BaseTask(object):
                       collate_fn=partial(self.data_collator, mt))
     
     def do_evaluate(self, args, mt) -> dict:
-        self.mode = "test"
         test_args = self.update_params(args, param_type="eval_params")
+        if not ("test_data" in test_args and test_args.test_data):
+            raise ValueError(f"[{self.task_name}]: test_data is required for testing.")
+        test_args.train_data = None
+        test_args.valid_data = None
         # test
+        self.mode = "test"
+        test_args.mode = "test"
+        test_args.do_test = True
+        test_args.strict_eval = True
+        test_args.load = test_args.save if self.need_finetune else None
         loss, metrics = testing_main(test_args,
-                                     model=mt.model,
-                                     forward_step_eval=partial(self.forward_step_eval, mt),
-                                     create_dataset_function=partial(self.create_dataset_function, mt),
-                                     handle_metrics_function=partial(self.calc_scores, test_args),
-                                     collate_fn=partial(self.data_collator, mt))
+                                    model=mt.model,
+                                    forward_step_eval=partial(self.forward_step_eval, mt),
+                                    create_dataset_function=partial(self.create_dataset_function, mt),
+                                    handle_metrics_function=partial(self.calc_scores, test_args),
+                                    collate_fn=partial(self.data_collator, mt))
         metrics["total_loss"] = loss
         return metrics

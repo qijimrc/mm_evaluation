@@ -28,26 +28,75 @@ tasks:
         save_interval: 500
         split: "1"
         do_valid: false
-        # eval_iters: 20
-        eval_interval: 500
-        strict_eval: true
-        eval_batch_size: 10
         do_test: false
       eval_params:
         mode: "inference"
-        strict_eval: true
+        eval_iters: 200
+        eval_interval: 500
+        eval_batch_size: 1
+        top_k: 10
+        top_p: 0.4
+        temperature: 0.8
+    
+    Visual7W:
+      metrics: [acc]
+      data:
+        train_data: Visual7W/raw/dataset_v7w_pointing.json---train
+        valid_data: Visual7W/raw/dataset_v7w_pointing.json---val
+        test_data: Visual7W/raw/dataset_v7w_pointing.json---test
+      need_finetune: true
+      need_evaluate: true
+      finetune_params:
+        mode: "finetune"
+        max_source_length: 400
+        max_target_length: 624
+        log_interval: 20
+        train_iters: 0
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 1000
+        split: "1"
+        do_valid: true
+        do_test: false
+      eval_params:
+        mode: "inference"
+        eval_iters: 200
+        eval_interval: 1000
+        eval_batch_size: 1
         top_k: 10
         top_p: 0.4
         temperature: 0.8
     
   # level_2:
 
-  # level_3:
-    # HalVQA:
-    #   data:
-    #     train:
-    #     val:
-    #     test: 
-    #   metrics: [acc]
-    #   params: 
+  level_3:
+    HalVQA:
+      metrics: [acc]
+      data:
+        train_data: HalVQA/csv_files/train.csv
+        test_data: HalVQA/csv_files/test.csv
+      need_finetune: true
+      need_evaluate: true
+      finetune_params:
+        mode: "finetune"
+        max_source_length: 1024
+        max_target_length: 256
+        log_interval: 20
+        train_iters: 2000
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 500
+        split: "1"
+        do_valid: false
+        do_test: false
+      eval_params:
+        mode: "inference"
+        eval_iters: 200
+        eval_interval: 500
+        eval_batch_size: 1
+        top_k: 10
+        top_p: 0.4
+        temperature: 0.8
       

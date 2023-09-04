@@ -1,19 +1,12 @@
 import os
-import json
-import random
 import pandas as pd
-from io import BytesIO
 from PIL import Image
-from typing import Any, Dict, List
-from functools import partial
+from typing import Dict, List
 from torch.utils.data import Dataset
 from sat.helpers import print_rank0
-from sat.data_utils.webds import SimpleDistributedWebDataset
 
 from mmbench.common.registry import Registry
-from mmbench.common.example import Example
 from mmbench.tasks.base_task import BaseTask
-from mmbench.common.utils import is_chinese
 
 class ScienceqaDataset(Dataset):
     def __init__(self, path, args, mt, mode, **kwargs):
@@ -85,7 +78,7 @@ class ScienceQA(BaseTask):
         res_df = res_df.drop_duplicates(subset=["question_ids"])
         # compute scores
         metric_cls = Registry.get_metric_class('acc')
-        metrics_scores[f"Avg"] = metric_cls.calc_scores(res_df["labels"], res_df["preds"])
+        metrics_scores["Avg"] = metric_cls.calc_scores(res_df["labels"], res_df["preds"])
         for ttype in self.ttypes: 
             c_df = data_df[data_df["ttype"] == ttype].drop_duplicates(subset=["question_id"])
             c_df = res_df[res_df["question_ids"].isin(c_df["question_id"])]

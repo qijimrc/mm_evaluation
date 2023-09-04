@@ -1,7 +1,7 @@
 import io
 import os
-import json
 import jsonlines
+import pandas as pd
 import webdataset as wds
 
 from PIL import Image
@@ -40,10 +40,25 @@ def process_data(raw_dir, save_dir, img_dir, mode):
                 tar.write(res)
     print(f"Save: {item_num}. Drop: {drop_num}")
 
+
+def process_data_to_csv(root_dir, save_dir, img_dir, mode):
+    result = []
+    eval_type_dict = {"0001": "existence", "0002": "color", "0003": "position"} 
+    with jsonlines.open(os.path.join(root_dir, f"HalVQA/raw/data_{mode}.jsonl"), "r") as fp:
+        qid = 0
+        for data in tqdm(fp):
+            eval_type = eval_type_dict[data["eval_type"]] if data["eval_type"] in eval_type_dict.keys() else data["eval_type"]
+            img_path = os.path.join(img_dir, data["image"])
+            prompt = generate_prompt_in_multi_choice(data["choices"], data["question"], language="zh")
+            result.append([qid, eval_type, prompt, data["answer"], img_path])
+            qid += 1
+    df = pd.DataFrame(result, columns=["question_id", "eval_type", "prompt", "answer", "image"], dtype=str)
+    df.to_csv(os.path.join(save_dir, f"{mode}.csv"), index=False)
+
+
 if __name__ == "__main__":
-    raw_dir = "/nxchinamobile2/shared/mmbench_datasets/HalVQA/raw"
-    save_dir = "/nxchinamobile2/shared/mmbench_datasets/HalVQA/web_dataset"
-    img_dir = os.path.join(raw_dir, "images")
+    root_dir = "/nxchinamobile2/shared/mmbench_datasets"
+    save_dir = os.path.join(root_dir, "HalVQA/csv_files")
+    img_dir = "HalVQA/raw/images"
     for mode in ["train", "test"]:
-        tmp_save_dir = os.path.join(save_dir, mode)
-        process_data(raw_dir, tmp_save_dir, img_dir, mode)
+        process_data_to_csv(root_dir, save_dir, img_dir, mode)

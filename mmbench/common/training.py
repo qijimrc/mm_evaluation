@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import random
 import math
 import numpy as np
 import torch
@@ -23,7 +21,6 @@ from collections import defaultdict
 from datetime import datetime
 from contextlib import ExitStack
 
-import torch.distributed as dist
 import deepspeed
 
 from sat.training.learning_rates import AnnealingLR
@@ -51,17 +48,6 @@ def training_main(args, model_cls, forward_step_function, create_dataset_functio
 
     timers = Timers()  # Timer.
 
-    # Experiment Name
-    if args.load and args.mode == 'pretrain':  # continue training
-        args.experiment_name = os.path.basename(os.path.normpath(args.load))
-    else:
-        args.experiment_name = args.experiment_name + '-' +datetime.now().strftime("%m-%d-%H-%M")
-
-    # Pytorch distributed. must before seed. ALREADY MOVED TO arguments.py!
-    # if isinstance(model_cls, type):
-    #     initialize_distributed(args)
-    #     set_random_seed(args.seed)  # Random seeds for reproducability.
-
     # Data stuff.
     train_data, val_data, test_data = make_loaders(args, hooks['create_dataset_function'], collate_fn=collate_fn)
     if args.epochs:
@@ -85,8 +71,7 @@ def training_main(args, model_cls, forward_step_function, create_dataset_functio
         #     args.iteration = load_checkpoint(model, optimizer, args)
     else:
         args.iteration = 0
-    if args.save:
-        args.save = os.path.join(args.save, args.experiment_name)
+    
     torch.distributed.barrier()
 
     # init hook before building deepspeed model and optimizer
@@ -94,7 +79,7 @@ def training_main(args, model_cls, forward_step_function, create_dataset_functio
         hooks['init_function'](args, model)
 
     # Optimization related things
-    model, optimizer = setup_model_untrainable_params_and_optimizer(args, model)
+    model, optimizer = setup_optimizer(args, model)
 
     # initialize lr scheduler
     lr_scheduler = get_learning_rate_scheduler(optimizer, args.iteration, args)
@@ -145,11 +130,8 @@ def training_main(args, model_cls, forward_step_function, create_dataset_functio
             model, len(test_data) if args.strict_eval else args.eval_iters, args, timers, True, split='test', hooks=hooks)
 
 
-def setup_model_untrainable_params_and_optimizer(args, model, config_params=None):
+def setup_optimizer(args, model, config_params=None):
     """Setup model and optimizer."""
-
-    if hasattr(model, 'disable_untrainable_params'):
-        model.disable_untrainable_params() # mark trainable params
 
     param_groups = get_optimizer_param_groups(model)
 
@@ -528,7 +510,7 @@ def report_evaluate_metrics(summary_writer, prefix, loss, ppl, step, avg_metrics
     string += 'loss: {:.6E} | '.format(loss)
     string += 'PPL: {:.6E}'.format(ppl)
     for key in avg_metrics:
-        string += ' {} {:.6E} |'.format(key, avg_metrics[key].item())
+        string += ' {} {:.6E} |'.format(key, avg_metrics[key])
     length = len(string) + 1
     print_rank0('-' * 100)
     print_rank0('-' * length)
