@@ -23,13 +23,14 @@ class Evaluator:
             cfg_path (str, optional): _description_. Defaults to os.path.dirname(__file__)+'/config.yaml'.
         """
         self.default_cfg = OmegaConf.load(cfg_path)
-        self._update_params(OmegaConf.load(custom_cfg_path))
+        if custom_cfg_path:
+            self._update_params(OmegaConf.load(custom_cfg_path))
 
         self.mmeval_home = os.environ.get("MMEVAL_HOME", os.path.join(os.path.expanduser('~'), ".mmbench_eval_tmp"))
         self.data_home_dir = self.default_cfg["home_env"][self.default_cfg["server_addr"]]["data_home"]
         
         self.tasks = {
-            name: Registry.get_task_class(name)(self.default_cfg["tasks"][level][name], custom_functions[name] if name in custom_functions else custom_functions)
+            name: Registry.get_task_class(name)(self.default_cfg["tasks"][level][name], custom_functions.get(name, custom_functions))
               for level in self.default_cfg["tasks"].keys() for name in self.default_cfg["tasks"][level]
         }
     
@@ -43,7 +44,7 @@ class Evaluator:
             for level_name in custom_params['tasks'].keys():
                 for task_name, params in custom_params['tasks'][level_name].items():
                     tmp_params = copy.deepcopy(params)
-                    for spec_name in ["finetune_params", "eval_params"]:
+                    for spec_name in ["data_params", "finetune_params", "eval_params"]:
                         if spec_name in tmp_params:
                             for pn, value in tmp_params[spec_name].items():
                                 self.default_cfg['tasks'][level_name][task_name][spec_name][pn] = value
@@ -60,12 +61,11 @@ class Evaluator:
         failed_tasks = []
         for i, task_name in enumerate(eval_tasks):
             try:
+                c_task = self.tasks[task_name]
                 # reset args & model states
                 args_cp = copy.deepcopy(args)
-                if i > 0:
-                    mt.reset_model()
+                args_cp.iteration = mt.reset_model(c_task)
                 print_rank0(f'Task ({i+1}/{len(eval_tasks)}) begin: {task_name}')
-                c_task = self.tasks[task_name]
                 # refine ckpt path
                 args_cp.experiment_name = f'{args_cp.experiment_name}_{c_task.task_name}-{timestring}'
                 args_cp.save = os.path.join(args_cp.save, args_cp.experiment_name)
@@ -85,7 +85,9 @@ class Evaluator:
                 print_rank0('-'*100)
                 print_rank0(f'Task ({i+1}/{len(eval_tasks)}) end: {task_name}')
             except Exception as e:
+                import traceback
                 print_rank0(e)
+                print_rank0(traceback.format_exc())
                 failed_tasks.append(task_name)
         print_rank0(f'Complete. Failed Tasks: {failed_tasks}')
         if os.path.exists(args.save_result_path):

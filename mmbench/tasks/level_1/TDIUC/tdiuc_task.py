@@ -1,98 +1,71 @@
-from mmbench.common.registry import Registry
-from mmbench.common.example import Example
-from mmbench.tasks.base_task import BaseTask
-from typing import Any, Dict, List
-import collections
-import csv
 import os
+import csv
 import json
+import random
+import collections
+import pandas as pd
+from io import BytesIO
+from PIL import Image
+from collections import Counter
+from typing import Dict, List
+from torch.utils.data import Dataset
+from sat.helpers import print_rank0
+
+from mmbench.common.registry import Registry
+from mmbench.tasks.base_task import BaseTask
 
 
-
-# @Registry.register_task('TDIUC')
+@Registry.register_task('TDIUC')
 class TDIUCTask(BaseTask):
-    def __init__(self, task_cfg):
-
+    def __init__(self, task_cfg, custom_functions, **kw_args):
         self.task_name = 'TDIUC'
-        self.img_dir = task_cfg.img_dir
-        self.anns_paths = task_cfg.anns_paths
-        self.metrics = task_cfg.metrics
         
         with open(os.path.join(os.path.dirname(__file__), 'sample_answerkey.csv')) as f:
            answerkey = csv.reader(f)
            self.answerkey = dict((rows[0],rows[1]) for rows in answerkey)
 
-        super().__init__(self.img_dir, self.anns_paths)
+        super().__init__(task_cfg, custom_functions, **kw_args)
+    
+    def process_fn_webDataset(self, args, mt, src):
+        for data in src:
+            # img
+            try:
+                img = Image.open(BytesIO(data['jpg'])).convert('RGB')
+            except Exception as e:
+                print_rank0(e)
+                continue
+            img_dict = {'vision': mt.image_processor(img)}
+            if mt.cross_image_processor:
+                img_dict.update({'cross': mt.cross_image_processor(img)})
+            
+            dialogues = json.loads(data['json'].decode("utf-8"))
+            if args.data_mode == "train":
+                dialogues = [random.choice(dialogues)]
+            for qa in dialogues:
+                ret = {
+                    "question_id": qa["question_id"],
+                    "label_text": qa["answer"]
+                }
+                # text
+                text_dict = mt.text_processor(qa["answer"], qa["question"])
+                if text_dict is None:
+                    continue
+                ret.update(text_dict)
+                ret.update(img_dict)
+                yield ret
 
-    def to_examples(self, img_dir: str, anns_paths: List) ->List[Example]:
-        """ Convert annotations to canonical examples.
-          Args:
-            @img_dir: the root dir of vision source.
-            @anns_paths: the paths of annotation files.
-          Return:
-            A list of examples instanced from the `Example` class.
-        """
-        examples = []
-        with open(anns_paths) as f:
-           for qa_info in json.load(f)['annotations']:
-              ex = Example(task=self.task_name,
-                          idx=qa_info['question_id'],
-                          img_path=os.path.join(img_dir, 'COCO_val2014_{}{}.jpg'.format(''.join(['0']*(12-len(str(qa_info['image_id'])))), qa_info['image_id'])),
-                          question=qa_info['question'],
-                          answers=[ans['answer'] for ans in qa_info['answers']], # here ignored other answer information
-                          example_type=qa_info['question_type'],
-                          context='image_id=%s' % qa_info['image_id'] # used during evaluation
-              )
-              examples.append(ex)
-        return examples
+    def calc_scores(self, args, results_total) -> Dict:
+        mirror_df = self.get_data_mirror(args)
 
-    def calc_scores(self, res_examples: List[Example], metrics: List[str]=['vqa_acc']) -> Dict:
-        """ Calculate scores with specified metrics.
-          Args:
-            @examples:
-            @metrics:
-          Return:
-            A result dict keyed by metrics names.
-        """
-        metrics_scores = {}
+        etypes = set(mirror_df["question_type"])
+        question_ids, preds, labels = results_total["question_ids"], results_total["preds"], results_total["labels"]
+        res_df = pd.DataFrame({"question_ids": question_ids, "preds": preds, "labels": labels})
         
-        res_examples = {ex.idx: ex for ex in res_examples}
-        result = collections.defaultdict(list)
-        notfound_gt, notfound_res = 0, 0
-        for gt_ex in self.examples:
-            gt_answer = gt_ex.answers[0]
-            gt_type = gt_ex.example_type
-            if gt_ex.idx in res_examples:
-                res_ex = res_examples[gt_ex.idx]
-                if gt_answer in self.answerkey:
-                    gt_ans_idx = int(self.answerkey[gt_answer])
-                else:
-                    notfound_gt += 1
-                    result[gt_type + '_f'].append(gt_ex.idx)
-                if res_ex.answers[0] in self.answerkey:
-                    pred_ans_idx = int(self.answerkey[res_ex.answers[0]])
-                else:
-                    notfound_res += 1
-                    result[gt_type + '_f'].append(gt_ex.idx)
-
-                if pred_ans_idx == gt_ans_idx:
-                    result[gt_type + '_t'].append(gt_ex.idx)
-                else:
-                    result[gt_type + '_f'].append(gt_ex.idx)
-            else:
-                pred_ans_idx[gt_type + '_f'].append(gt_ex.idx)
-        print(f"[TDIUC] {notfound_res}, {notfound_gt} examples from predictions and ground-truth are not found in answerkey, respectively.")
-
-        types = list(set([ex.example_type for ex in self.examples]))
-        sum_acc = []
-        eps = 1e-10
-        for tp in types:
-            acc = 100*(len(result[tp+'_t']) / len(result[tp+'_t'] + result[tp+'_f']))
-            sum_acc.append(acc + eps)
-            metrics_scores["Acc for type " + tp] = acc
-        metrics_scores["Acc sum"] = sum_acc
-
+        metrics_scores = {}
+        metric_cls = Registry.get_metric_class('acc')
+        metrics_scores["Avg"] = metric_cls.calc_scores(res_df["labels"], res_df["preds"])
+        for c_type in etypes:
+            c_df = mirror_df[mirror_df["question_type"] == c_type].drop_duplicates(subset=["question_id"])
+            c_df = res_df[res_df["question_ids"].isin(c_df["question_id"])]
+            metrics_scores[c_type] = metric_cls.calc_scores(c_df["labels"], c_df["preds"])
         return metrics_scores
-
-
-

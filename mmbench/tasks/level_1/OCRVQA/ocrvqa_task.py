@@ -1,79 +1,62 @@
-from typing import Any, Dict, List
 import os
 import json
+import random
+import pandas as pd
+from PIL import Image
+from io import BytesIO
+from typing import Dict, List
+from sat.helpers import print_rank0
 
 from mmbench.common.registry import Registry
-from mmbench.common.example import Example
 from mmbench.tasks.base_task import BaseTask
 
-# @Registry.register_task('OCRVQA')
+@Registry.register_task('OCRVQA')
 class OCRVQA(BaseTask):
-    def __init__(self, task_cfg):
-
+    def __init__(self, task_cfg, custom_functions, **kw_args):
         self.task_name = 'OCRVQA'
-        self.img_dir = task_cfg.img_dir
-        self.anns_paths = task_cfg.anns_paths
-        self.metrics = task_cfg.metrics
-        self.all_eval_types = set()
-        super().__init__(self.img_dir, self.anns_paths)
+        super().__init__(task_cfg, custom_functions, **kw_args)
         
-    def to_examples(self, img_dir: str, anns_paths: str) ->List[Example]:
-        """ Convert annotations to canonical examples.
-          Args:
-            @img_dir: the root dir of vision source.
-            @anns_paths: the paths of annotation files.
-          Return:
-            A list of examples instanced from the `Example` class.
-        """
-        examples = []
-        
-        drop_num = 0
-        with open(anns_paths) as fp:
-            sid = 0
-            data = json.load(fp)
-            for key, value in data.items():
-              if value["split_str"] != "test":
+    def process_fn_webDataset(self, args, mt, src):
+        for data in src:
+            # img
+            try:
+                img = Image.open(BytesIO(data['jpg'])).convert('RGB')
+            except Exception as e:
+                print_rank0(e)
                 continue
-              image_path = None
-              if value["image"]:
-                  image_path = os.path.join(self.img_dir, value["image"])
-                  if not os.path.exists(image_path):
-                    print(f"image not found: {image_path}, will be skipped.")
-                    drop_num += 1
+            img_dict = {'vision': mt.image_processor(img)}
+            if mt.cross_image_processor:
+                img_dict.update({'cross': mt.cross_image_processor(img)})
+            
+            dialogues = json.loads(data['json'].decode("utf-8"))
+            if args.data_mode == "train":
+                dialogues = [random.choice(dialogues)]
+            for qa in dialogues:
+                ret = {
+                    "question_id": qa["question_id"],
+                    "label_text": qa["answer"]
+                }
+                # text
+                text_dict = mt.text_processor(qa["answer"], qa["prompt"])
+                if text_dict is None:
                     continue
-              questions, answers = value["questions"], value["answers"]
-              self.all_eval_types.add(value["genre"])
-              for question, answer in zip(questions, answers):
-                  ex = Example(task=self.task_name,
-                              idx=sid,
-                              img_path=image_path,
-                              question=question,
-                              answers=answer,
-                              example_type=value["genre"])
-                  examples.append(ex)
-                  sid += 1
-        print(f"{self.task_name}: add {len(examples)} examples in all, and dropped {drop_num} examples.")
-        return examples
+                ret.update(text_dict)
+                ret.update(img_dict)
+                yield ret
 
-    def calc_scores(self, res_examples: List[Example], metrics: List[str]=['acc']) -> Dict:
-        """ Calculate scores with specified metrics.
-          Args:
-            @examples:
-            @metrics:
-          Return:
-            A result dict keyed by metrics names.
-        """
-        metrics_scores = {"all": {}}
-        for name in metrics:
-          metric_cls = Registry.get_metric_class(name)
-          scores = metric_cls.calc_scores(res_examples, self.examples)
-          metrics_scores["all"][name] = scores
-        for eval_type in self.all_eval_types:
-          c_res_example = [ex for ex in res_examples if ex.example_type == eval_type]
-          c_ans_example = [ex for ex in self.examples if ex.example_type == eval_type]
-          metrics_scores[eval_type] = {}
-          for name in metrics:
-            metric_cls = Registry.get_metric_class(name)
-            scores = metric_cls.calc_scores(c_res_example, c_ans_example)
-            metrics_scores[eval_type][name] = scores
+    def calc_scores(self, args, results_total) -> Dict:
+        mirror_df = self.get_data_mirror(args)
+        
+        metrics_scores = {}
+        question_ids, preds, labels = results_total["question_ids"], results_total["preds"], results_total["labels"]
+        res_df = pd.DataFrame({"question_ids": question_ids, "preds": preds, "labels": labels})
+        # remove duplicates
+        res_df = res_df.drop_duplicates(subset=["question_ids"])
+        # compute score
+        metric_cls = Registry.get_metric_class('acc')
+        metrics_scores["Avg"] = metric_cls.calc_scores(res_df["labels"], res_df["preds"])
+        for etype in mirror_df["type"].unique().tolist():
+            c_df = mirror_df[mirror_df["type"] == etype].drop_duplicates(subset=["question_id"])
+            c_df = res_df[res_df["question_ids"].isin(c_df["question_id"])]
+            metrics_scores[etype] = metric_cls.calc_scores(c_df["labels"], c_df["preds"])
         return metrics_scores

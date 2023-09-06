@@ -18,12 +18,16 @@ import math
 import numpy as np
 import torch
 import deepspeed
+import webdataset as wds
+from torch.utils.data import DataLoader
 
 from sat import mpu
 from sat.training.model_io import load_checkpoint
 from sat.training.utils import Timers
 from sat.data_utils import make_loaders
 from sat.helpers import print_rank0, print_all
+
+from mmbench.common.utils import get_tar_files
 
 def testing_main(args,
                  model,
@@ -53,9 +57,18 @@ def testing_main(args,
     if args.do_test and test_data is not None:
         prefix = 'test data'
         test_loss, metrics = evaluate_and_print_results(prefix, iter(test_data),
-            model, len(test_data) if args.strict_eval else args.eval_iters, args, timers, True, split='test', hooks=hooks)
+            model, len(test_data) if args.strict_eval else args.eval_iters, args, timers, True, split='test', verbose=True, hooks=hooks)
         return test_loss, metrics
     return 0.0, {} 
+
+def evaluate_and_print_results(prefix, data_iterator, model, eval_iters,
+                            args, timers, has_last, split, verbose=False, step=None, summary_writer=None, hooks={}):
+    """Helper function to evaluate and dump results on screen."""
+    lm_loss, metrics = evaluate(data_iterator, model, eval_iters, args, timers, split, verbose, has_last, hooks=hooks)
+    lm_ppl = math.exp(min(20, lm_loss))
+    if torch.distributed.get_rank(group=mpu.get_data_parallel_group())==0:
+        report_evaluate_metrics(summary_writer, prefix, lm_loss, lm_ppl, step, metrics)
+    return lm_loss, metrics
 
 def evaluate(data_iterator, model, eval_iters, args, timers, split, verbose=False, has_last=True, hooks={}):
     """Evaluation."""
@@ -99,7 +112,15 @@ def evaluate(data_iterator, model, eval_iters, args, timers, split, verbose=Fals
                 if rank == 0:
                     gathered_len = len(byte_list) if not is_last else len(byte_list) - drop_number * args.model_parallel_size
                     for i in range(gathered_len):
-                        decode_value = np.array(byte_list[i].cpu()).tobytes().decode('utf-8')
+                        decode_bytes = np.array(byte_list[i].cpu()).tobytes()
+                        try:
+                            decode_value = decode_bytes.decode('utf-8')
+                        except Exception as e:
+                            try:
+                                decode_value = decode_bytes.decode('ISO-8859-1')
+                            except Exception as e:
+                                decode_value = "<DecodeError>"
+                                print_rank0(f'decode failed, the output is replaced by {decode_value}.')
                         metrics_total[name].append(decode_value)
                 
     # Move model back to the train mode.
@@ -113,15 +134,6 @@ def evaluate(data_iterator, model, eval_iters, args, timers, split, verbose=Fals
     else:
         metrics = None
     return total_lm_loss, metrics
-
-def evaluate_and_print_results(prefix, data_iterator, model, eval_iters,
-                            args, timers, has_last, split, verbose=False, step=None, summary_writer=None, hooks={}):
-    """Helper function to evaluate and dump results on screen."""
-    lm_loss, metrics = evaluate(data_iterator, model, eval_iters, args, timers, split, verbose, has_last, hooks=hooks)
-    lm_ppl = math.exp(min(20, lm_loss))
-    if torch.distributed.get_rank(group=mpu.get_data_parallel_group())==0:
-        report_evaluate_metrics(summary_writer, prefix, lm_loss, lm_ppl, step, metrics)
-    return lm_loss, metrics
 
 def report_evaluate_metrics(summary_writer, prefix, loss, ppl, step, avg_metrics):
     string = ' validation loss at {} | '.format(prefix)

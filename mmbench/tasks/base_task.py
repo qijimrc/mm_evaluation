@@ -5,12 +5,16 @@ import torch
 import random
 import argparse
 import numpy as np
+import pandas as pd
+import webdataset as wds
 
 from functools import partial, wraps
 from collections import defaultdict
 from torch.nn import CrossEntropyLoss
+from torch.utils.data import DataLoader
 
 from sat import mpu, get_args
+from sat.helpers import print_rank0
 from sat.model.mixins import CachedAutoregressiveMixin
 from sat.generation.autoregressive_sampling import filling_sequence
 from sat.generation.sampling_strategies import BaseStrategy, BeamSearchStrategy
@@ -25,12 +29,24 @@ from typing import Any, Dict, List, Optional
 
 class BaseTask(object):
     def __init__(self, task_cfg, custom_functions=dict(), **kwargs):
+        self.data_mirror = {}
         self.task_cfg = task_cfg
         self.metrics = task_cfg.metrics
         self.need_finetune = task_cfg.get('need_finetune', False)
         self.need_evaluate = task_cfg.get('need_evaluate', False)
+        self.max_source_length = task_cfg["data_params"].get("max_source_length", 1024)
+        self.max_target_length = task_cfg["data_params"].get("max_target_length", 512)
+        self.no_prompt = task_cfg.get("no_prompt", False)
         self.custom_functions = custom_functions
     
+    @NotImplementedError
+    def calc_scores(self, args, results_total):
+        pass
+
+    @NotImplementedError
+    def process_fn_webDataset(self, args, mt, src):
+        pass
+
     def custom_func(func):
         @wraps(func)
         def new_func(self, *args, **kwargs):
@@ -39,30 +55,70 @@ class BaseTask(object):
             return func(self, *args, **kwargs)
         return new_func
 
-    @NotImplementedError
-    def calc_scores(self, args, results_total):
-        pass
-    
-    @NotImplementedError
-    def create_dataset_function(self, mt, path, args):
-        pass
+    def partial_wo(self, func, *args, **kwargs):
+        if self.custom_functions.get(func.__name__, None):
+            return func
+        return partial(func, *args, **kwargs)
 
-    def update_params(self, args, param_type="eval_params"):
+    def create_dataset_function(self, mt, path, args):
+        path, args.data_mode = path.split("###")
+        urls = get_tar_files(path)
+        if hasattr(args, "random_urls") and args.random_urls:
+            urls = random.shuffle(urls)
+        dataset = SimpleDistributedWebDataset(urls, partial(self.process_fn_webDataset, args, mt), args.seed)
+        return dataset
+    
+    def update_params(self, args, param_types: list):
         merge_args = copy.deepcopy(vars(args))
-        if hasattr(self.task_cfg, param_type):
-            for key, value in self.task_cfg[param_type].items():
-                merge_args[key] = value
+        for param_type in param_types:
+            if hasattr(self.task_cfg, param_type):
+                for key, value in self.task_cfg[param_type].items():
+                    merge_args[key] = value
         if hasattr(self.task_cfg, "data"):
             for key, value in self.task_cfg.data.items():
                 tmp_path = os.path.join(args.data_home_dir, value)
-                # assert os.path.exists(tmp_path), f"cannot found {tmp_path}"
                 merge_args[key] = [tmp_path]
         return argparse.Namespace(**merge_args)
+    
+    def get_data_mirror(self, args):
+        """save all data to pd.DataFrame for computing metric scores
+        """
+        print_rank0(f'[{self.mode}]: fetch data mirror begin.')
+        def get_data_from_wds(path):
+            urls = get_tar_files(path)
+            dataset = wds.WebDataset(urls).shuffle(1)
+            wds_dataloader = DataLoader(dataset, num_workers=1, batch_size=1)
+            result, qa_keys = [], None
+            for item in wds_dataloader:
+                image_qa_all = eval(item["json"][0].decode('utf-8'))
+                if qa_keys is None and len(image_qa_all) > 0:
+                    qa_keys = list(image_qa_all[0].keys())
+                for data in image_qa_all:
+                    result.append([data[k] for k in qa_keys])
+            res_df = pd.DataFrame(result, columns=qa_keys, dtype=str)
+            return res_df
 
-    def data_processor(self, urls, args, mt, **kwargs):
-        return SimpleDistributedWebDataset(urls, partial(self.process_fn_dataset, args, mt), args.seed)
-      
-    def data_collator(self, mt, examples):
+        if self.mode not in self.data_mirror:
+            data_path = args.valid_data[0] if self.mode == "finetune" else args.test_data[0]
+            data_path = data_path.split("###")[0]
+            self.data_mirror[self.mode] = get_data_from_wds(data_path)
+        mirror_df = self.data_mirror[self.mode]
+        print_rank0(f'[{self.mode}]: fetch data mirror end.')
+        return mirror_df
+    
+    def get_wds_size(self, path):
+        urls = get_tar_files(path)
+        dataset = wds.WebDataset(urls).shuffle(1)
+        wds_dataloader = DataLoader(dataset, num_workers=1, batch_size=8)
+
+        wds_size = 0
+        for item in wds_dataloader:
+            for i in range(len(item["__key__"])):
+                wds_size += len(eval(item["json"][i]))
+        return wds_size
+
+    @custom_func
+    def collate_fn(self, mt, examples):
         for example in examples:
             for k in example:
                 if isinstance(example[k], list):
@@ -116,7 +172,7 @@ class BaseTask(object):
         if data_iterator is not None:
             data = next(data_iterator)
         else:
-            data = None
+            return None
         timers('data loader').stop()
         data_b = self.broadcast_auto(data)
         for k in data_b:
@@ -127,13 +183,14 @@ class BaseTask(object):
                     data_b[k] = data_b[k].bfloat16()
         return data_b
 
+    @custom_func
     def forward_step(self, data_iterator, model, args, timers):
-        if self.custom_functions.get("forward_step", None):
-            return self.custom_functions["forward_step"](data_iterator, model, args, timers)
         # Get the batch.
         timers('batch generator').start()
         data_b = self.get_batch(
             data_iterator, args, timers)
+        if data_b is None:
+            return torch.tensor(0, device=args.device), {}
         labels = data_b.pop('labels')
         timers('batch generator').stop()
         logits = model(**data_b)[0]
@@ -146,21 +203,25 @@ class BaseTask(object):
         loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
         loss = loss.to(torch.float32)
 
-        return loss, {'loss': loss}
+        return loss, {}
+
+    @custom_func
+    def preprocess_datab_eval(self, context_len, data_b):
+        return data_b
     
-    def chat(self, model, tokenizer, text_processor_inference, tokens, args, **kwargs):
+    def chat(self, tokens, mt, args, **kwargs):
         if self.custom_functions.get("chat", None):
-            return self.custom_functions["chat"](model, tokenizer, text_processor_inference, tokens, args, **kwargs)
-        inputs = tokens.to(model.parameters().__next__().device)[0]
+            return self.custom_functions["chat"](mt.model, mt.tokenizer, mt.text_processor_inference, tokens, args, **kwargs)
+        inputs = tokens.to(mt.model.parameters().__next__().device)[0]
         seq = torch.cat(
-            [inputs, torch.tensor([-1] * (args.max_source_length + args.max_target_length - len(inputs)), device=inputs.device)], dim=0
+            [inputs, torch.tensor([-1] * (self.max_source_length + self.max_target_length - len(inputs)), device=inputs.device)], dim=0
         )
-        strategy = BaseStrategy(temperature=args.temperature, top_p=args.top_p, top_k=args.top_k, end_tokens=[tokenizer.eos_token_id])
+        strategy = BaseStrategy(temperature=args.temperature, top_p=args.top_p, top_k=args.top_k, end_tokens=[mt.tokenizer.eos_token_id])
         # strategy = BeamSearchStrategy(temperature=temperature, top_p=top_p, top_k=top_k, end_tokens=[tokenizer.eos_token_id],
         #                               num_beams=num_beams, consider_end=True)
-        get_func = text_processor_inference.get_func(None, image_rope_mask=kwargs['image_rope_mask'])
+        get_func = mt.text_processor_inference.get_func(None, image_rope_mask=kwargs['image_rope_mask'])
         output = filling_sequence(
-            model, seq,
+            mt.model, seq,
             batch_size=1,
             strategy=strategy,
             get_masks_and_position_ids=get_func,
@@ -169,45 +230,33 @@ class BaseTask(object):
 
         return output
 
-    def precess_datab_in_eval(self, context_len, data_b):
-        if self.custom_functions.get("precess_datab_in_eval", None):
-            return self.custom_functions["precess_datab_in_eval"](context_len, data_b)
-        data_b['vision_expert_mask'] = data_b['vision_expert_mask'][:, :context_len]
-        data_b['image_embed_mask'] = data_b['image_embed_mask'][:, :context_len]
-        data_b['image_rope_mask'] = data_b['image_rope_mask'][:, :context_len]
-
-        data_b.pop('input_ids')
-        data_b.pop('attention_mask')
-        data_b.pop('position_ids')
-        return data_b
-    
+    @custom_func
     def forward_step_eval(self, mt, data_iterator, model, args, timers):
-        if self.custom_functions.get("forward_step_eval", None):
-            return self.custom_functions["forward_step_eval"](data_iterator, model, args, timers)
         # Get the batch.
         timers('batch generator').start()
         data_b = self.get_batch(
             data_iterator, args, timers)
+        if data_b is None:
+            return torch.tensor(0, device=args.device), {}
         timers('batch generator').stop()
 
         context_len = int(data_b['context_length'][0])
         tokens = data_b['input_ids'][:, :context_len]
-        data_b = self.precess_datab_in_eval(context_len, data_b)
-        label_text = data_b.pop('label_text')
-        question_id = data_b.pop('question_id')
+        data_b = self.preprocess_datab_eval(context_len, data_b)
+        label_text = data_b.pop('label_text')[0]
+        question_id = data_b.pop('question_id')[0]
 
         model.add_mixin('auto-regressive', CachedAutoregressiveMixin())
-        outputs = self.chat(model, mt.tokenizer, mt.text_processor_inference, tokens, args, **data_b)[0][context_len:]
+        outputs = self.chat(tokens, mt, args, **data_b)[0][context_len:]
         model.del_mixin('auto-regressive')
 
         outputs = outputs.unsqueeze(0)
         pred = mt.tokenizer.batch_decode(outputs, skip_special_tokens=True)[0].strip()
-        metrics = {"question_ids": str(question_id), "labels": label_text[0], "preds": pred}
+        metrics = {"question_ids": str(question_id), "labels": label_text, "preds": pred}
         return torch.tensor(0, device=outputs.device), metrics
     
     def do_finetune(self, args, mt):
-        finetune_args = self.update_params(args, param_type="finetune_params")
-        finetune_args = self.update_params(args, param_type="eval_params")
+        finetune_args = self.update_params(args, param_types=["finetune_params", "eval_params", "data_params"])
         if not ("train_data" in finetune_args and finetune_args.train_data):
             raise ValueError(f"[{self.task_name}]: train_data is required for finetuning.")
         # train
@@ -216,28 +265,32 @@ class BaseTask(object):
         training_main(finetune_args,
                       model_cls=mt.model,
                       forward_step_function=self.forward_step,
-                      forward_step_eval=partial(self.forward_step_eval, mt),
-                      create_dataset_function=partial(self.create_dataset_function, mt),
-                      handle_metrics_function=partial(self.calc_scores, finetune_args),
-                      collate_fn=partial(self.data_collator, mt))
+                      forward_step_eval=self.partial_wo(self.forward_step_eval, mt),
+                      create_dataset_function=self.partial_wo(self.create_dataset_function, mt),
+                      handle_metrics_function=self.partial_wo(self.calc_scores, finetune_args),
+                      collate_fn=self.partial_wo(self.collate_fn, mt))
     
     def do_evaluate(self, args, mt) -> dict:
-        test_args = self.update_params(args, param_type="eval_params")
+        test_args = self.update_params(args, param_types=["eval_params", "data_params"])
         if not ("test_data" in test_args and test_args.test_data):
             raise ValueError(f"[{self.task_name}]: test_data is required for testing.")
         test_args.train_data = None
         test_args.valid_data = None
         # test
         self.mode = "test"
-        test_args.mode = "test"
+        test_args.mode = "inference"
         test_args.do_test = True
         test_args.strict_eval = True
+        if test_args.strict_eval and test_args.iterable_dataset:
+            test_args.eval_iters = self.get_wds_size(test_args.test_data[0].split('###')[0])
+            test_args.strict_eval = False
+            print_rank0(f'Due to strict_eval and iterable_dataset, resize eval_iters: {args.eval_iters}')
         test_args.load = test_args.save if self.need_finetune else None
         loss, metrics = testing_main(test_args,
                                     model=mt.model,
                                     forward_step_eval=partial(self.forward_step_eval, mt),
                                     create_dataset_function=partial(self.create_dataset_function, mt),
                                     handle_metrics_function=partial(self.calc_scores, test_args),
-                                    collate_fn=partial(self.data_collator, mt))
+                                    collate_fn=partial(self.collate_fn, mt))
         metrics["total_loss"] = loss
         return metrics

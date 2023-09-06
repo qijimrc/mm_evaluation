@@ -1,24 +1,22 @@
 import os
-import random
-import math
-import pandas as pd
 import json
-
-from io import BytesIO
+import random
+import pandas as pd
 from PIL import Image
+from io import BytesIO
 from typing import Dict, List
-from torch.utils.data import Dataset
 from sat.helpers import print_rank0
 
 from mmbench.common.registry import Registry
 from mmbench.tasks.base_task import BaseTask
 
-@Registry.register_task('Visual7W')
-class Visual7W(BaseTask):
+
+@Registry.register_task('TextVQA')
+class TextVQATask(BaseTask):
     def __init__(self, task_cfg, custom_functions, **kw_args):
-        self.task_name = 'Visual7W'
+        self.task_name = 'TextVQA'
         super().__init__(task_cfg, custom_functions, **kw_args)
-    
+
     def process_fn_webDataset(self, args, mt, src):
         for data in src:
             # img
@@ -40,7 +38,7 @@ class Visual7W(BaseTask):
                     "label_text": qa["answer"]
                 }
                 # text
-                text_dict = mt.text_processor(qa["answer"], qa["prompt"])
+                text_dict = mt.text_processor(qa["answer"], qa["question"])
                 if text_dict is None:
                     continue
                 ret.update(text_dict)
@@ -48,18 +46,13 @@ class Visual7W(BaseTask):
                 yield ret
 
     def calc_scores(self, args, results_total) -> Dict:
-        mirror_df = self.get_data_mirror(args)
-        
         metrics_scores = {}
         question_ids, preds, labels = results_total["question_ids"], results_total["preds"], results_total["labels"]
         res_df = pd.DataFrame({"question_ids": question_ids, "preds": preds, "labels": labels})
         # remove duplicates
         res_df = res_df.drop_duplicates(subset=["question_ids"])
-        # compute score
+        # compute scores
         metric_cls = Registry.get_metric_class('acc')
-        metrics_scores["Avg"] = metric_cls.calc_scores(res_df["labels"], res_df["preds"])
-        for etype in mirror_df["type"].unique().tolist():
-            c_df = mirror_df[mirror_df["type"] == etype].drop_duplicates(subset=["question_id"])
-            c_df = res_df[res_df["question_ids"].isin(c_df["question_id"])]
-            metrics_scores[etype] = metric_cls.calc_scores(c_df["labels"], c_df["preds"])
+        metrics_scores["Total"] = metric_cls.calc_scores(res_df["labels"], res_df["preds"])
         return metrics_scores
+        

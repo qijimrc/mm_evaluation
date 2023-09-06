@@ -11,15 +11,15 @@ tasks:
     ScienceQA:
       metrics: [acc]
       data:
-        train_data: ScienceQA/csv_files/train.csv
-        valid_data: ScienceQA/csv_files/val.csv
-        test_data: ScienceQA/csv_files/test.csv
-      need_finetune: true
-      need_evaluate: true
+        train_data: processed/ScienceQA/train###train
+        valid_data: processed/ScienceQA/val###val
+        test_data: processed/ScienceQA/test###test
+      data_params:
+        max_source_length: 640
+        max_target_length: 128
+        iterable_dataset: true
+        block_size: 500
       finetune_params:
-        mode: "finetune"
-        max_source_length: 1024
-        max_target_length: 256
         log_interval: 20
         train_iters: 2000
         resume_dataloader: true
@@ -30,7 +30,6 @@ tasks:
         do_valid: false
         do_test: false
       eval_params:
-        mode: "inference"
         eval_iters: 200
         eval_interval: 500
         eval_batch_size: 1
@@ -41,15 +40,15 @@ tasks:
     Visual7W:
       metrics: [acc]
       data:
-        train_data: Visual7W/raw/dataset_v7w_pointing.json---train
-        valid_data: Visual7W/raw/dataset_v7w_pointing.json---val
-        test_data: Visual7W/raw/dataset_v7w_pointing.json---test
-      need_finetune: true
-      need_evaluate: true
+        train_data: processed/Visual7W/train###train
+        valid_data: processed/Visual7W/val###val
+        test_data: processed/Visual7W/test###test
+      data_params:
+        max_source_length: 640
+        max_target_length: 128
+        iterable_dataset: true
+        block_size: 500
       finetune_params:
-        mode: "finetune"
-        max_source_length: 400
-        max_target_length: 624
         log_interval: 20
         train_iters: 0
         resume_dataloader: true
@@ -60,7 +59,6 @@ tasks:
         do_valid: true
         do_test: false
       eval_params:
-        mode: "inference"
         eval_iters: 200
         eval_interval: 1000
         eval_batch_size: 1
@@ -68,20 +66,78 @@ tasks:
         top_p: 0.4
         temperature: 0.8
     
-  # level_2:
-
-  level_3:
-    HalVQA:
+    OCRVQA:
       metrics: [acc]
       data:
-        train_data: HalVQA/csv_files/train.csv
-        test_data: HalVQA/csv_files/test.csv
-      need_finetune: true
-      need_evaluate: true
+        train_data: processed/OCR-VQA/train###train
+        valid_data: processed/OCR-VQA/val###val
+        test_data: processed/OCR-VQA/test###test
+      data_params:
+        max_source_length: 640
+        max_target_length: 128
+        iterable_dataset: true
+        block_size: 500
+      finetune_params:
+        log_interval: 20
+        train_iters: 0
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 1000
+        split: "1"
+        do_valid: true
+        do_test: false
+      eval_params:
+        eval_iters: 200
+        eval_interval: 1000
+        eval_batch_size: 1
+        top_k: 10
+        top_p: 0.4
+        temperature: 0.8
+    
+    TDIUC:
+      metrics: [acc]
+      data:
+        train_data: processed/TDIUC/train###train
+        test_data: processed/TDIUC/val###test
+      data_params:
+        max_source_length: 640
+        max_target_length: 128
+        iterable_dataset: true
+        block_size: 500
       finetune_params:
         mode: "finetune"
-        max_source_length: 1024
-        max_target_length: 256
+        log_interval: 20
+        train_iters: 5000
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 1000
+        split: "1"
+        do_valid: false
+        do_test: false
+      eval_params:
+        mode: "inference"
+        eval_iters: 200
+        eval_interval: 500
+        eval_batch_size: 1
+        top_k: 1
+        top_p: 0.4
+        temperature: 0.8
+    
+    TextVQA:
+      metrics: [acc]
+      data:
+        train_data: processed/TextVQA/train###train
+        test_data: processed/TextVQA/val###test
+      need_finetune: true
+      need_evaluate: true
+      data_params:
+        max_source_length: 640
+        max_target_length: 128
+        iterable_dataset: true
+        block_size: 500
+      finetune_params:
         log_interval: 20
         train_iters: 2000
         resume_dataloader: true
@@ -92,9 +148,74 @@ tasks:
         do_valid: false
         do_test: false
       eval_params:
-        mode: "inference"
         eval_iters: 200
         eval_interval: 500
+        eval_batch_size: 1
+        top_k: 1
+        top_p: 0.4
+        temperature: 0.8
+      
+    GQA:
+      metrics: [acc]
+      data:
+        train_data: processed/GQA/train###train
+        valid_data: processed/GQA/val###val
+        test_data: processed/GQA/test###test
+      need_finetune: true
+      need_evaluate: true
+      data_params:
+        max_source_length: 640
+        max_target_length: 128
+        iterable_dataset: true
+        block_size: 500
+      finetune_params:
+        log_interval: 20
+        train_iters: 2000
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 500
+        split: "1"
+        do_valid: false
+        do_test: false
+      eval_params:
+        eval_iters: 200
+        eval_interval: 500
+        eval_batch_size: 1
+        top_k: 1
+        top_p: 0.4
+        temperature: 0.8
+    
+  # level_2:
+
+  level_3:
+    HalVQA:
+      metrics: [acc]
+      data:
+        train_data: processed/HalVQA/train###train
+        test_data: processed/HalVQA/test###test
+      need_finetune: true
+      need_evaluate: true
+      data_params:
+        max_source_length: 640
+        max_target_length: 128
+        iterable_dataset: true
+        block_size: 500
+      finetune_params:
+        log_interval: 20
+        train_iters: 500
+        block_size: 500
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 500
+        split: "1"
+        do_valid: false
+        do_test: false
+      eval_params:
+        eval_iters: 200
+        eval_interval: 500
+        block_size: 500
         eval_batch_size: 1
         top_k: 10
         top_p: 0.4

@@ -1,56 +1,78 @@
+import os
 import json
-import argparse
-from typing import List
-import numpy as np
 import tqdm
-from itertools import combinations
-import torch
-from transformers import AutoModel, AutoTokenizer
+import pandas as pd
+import webdataset as wds
+from collections import Counter
+from utils import get_image_bytes
 
+def select_answer_by_confidence(answers):
+    confidenced_answers = [answer["answer"] for answer in answers if answer["answer_confidence"] == "yes"]
+    if len(confidenced_answers) == 0:
+        return None
+    counts = Counter(confidenced_answers)
+    counts = sorted(counts.items(), key=lambda x: x[1], reverse=True)
+    return counts[0][0]
 
-
-
-def select_samples(questions_f: List, anns_f: List, N: int=-1, save_f='sampled.json'):
-    ''' Select samples to maintain the examples with the most diversified questions, where -1 means select the full set.
-    '''
-    with open(questions_f) as f1, open(anns_f) as f2:
+def process_data(root_dir, mode):
+    question_file = os.path.join(root_dir, f'raw/TDIUC/Questions/OpenEnded_mscoco_{mode}2014_questions.json')
+    annotaion_file = os.path.join(root_dir, f'raw/TDIUC/Annotations/mscoco_{mode}2014_annotations.json')
+    save_dir = os.path.join(root_dir, f"processed/TDIUC/{mode}")
+    if not os.path.exists(save_dir):
+        os.mkdir(save_dir)
+    img_dir = f"raw/TDIUC/MSCOCO2014_{mode}2014"
+    with open(question_file) as f1, open(annotaion_file) as f2:
         questions, anns = json.load(f1), json.load(f2)
-
+        
     sorted_qs = sorted(questions['questions'], key=lambda x:x['question_id'])
     sorted_anns = sorted(anns['annotations'], key=lambda x:x['question_id'])
-    
-    if N != -1:
-        sampling_ids = np.random.choice(range(len(sorted_qs)), min(N, len(sorted_qs)), replace=False)
-    else:
-        sampling_ids = range(len(sorted_qs))
-    tot_succeed = 0
-    qa_annotations = []
-    for idx in tqdm.tqdm(sampling_ids):
+    all_data, drop_num, item_num = {}, 0, 0
+    for idx in tqdm.tqdm(range(len(sorted_qs))):
         q_info, a_info = sorted_qs[idx], sorted_anns[idx]
-        qa_annotations.append(q_info | a_info)
-        tot_succeed += 1
-
-    questions['annotations'] = qa_annotations
-    questions.pop('questions')
-    questions['license'] = questions.pop('licence')
-    with open(save_f, 'w') as f:
-        json.dump(questions, f)
-    return tot_succeed, len(sorted_qs)
-
-
+        assert q_info["image_id"] == a_info["image_id"]
+        qa_info = q_info | a_info
+        img_path = os.path.join(root_dir, img_dir, 'COCO_{}2014_{}{}.jpg'.format(mode, ''.join(['0']*(12-len(str(qa_info['image_id'])))), qa_info['image_id']))
+        if not os.path.exists(img_path):
+            drop_num += 1
+            print(f'not found {img_path}.')
+            continue
+        answer = select_answer_by_confidence(qa_info["answers"])
+        if answer is None:
+            drop_num += 1
+            print(f'no confidenced answer!')
+            continue
+        c_data = {k: qa_info[k] for k in ["question_id", "question_type", "question", "ans_source"]}
+        c_data["answer"] = answer
+        if img_path not in all_data:
+            all_data[img_path] = []
+        all_data[img_path].append(c_data)
+        item_num += 1
+    # save tarfiles
+    tar_id, result_tar, image_num = 0, [], 0
+    for key, value in tqdm.tqdm(all_data.items()):
+        c_tar = {
+            "__key__": "%06d" %image_num,
+            "json": value,
+            "jpg": get_image_bytes(key)
+        }
+        result_tar.append(c_tar)
+        image_num += 1
+        if len(result_tar) >= 1000:
+            with wds.TarWriter(os.path.join(save_dir, f"{mode}_tdiuc_%06d.tar" %(tar_id)), "w") as tar:
+                for res in result_tar:
+                    tar.write(res)
+            result_tar = []
+            tar_id += 1
+    if len(result_tar) > 0:
+        with wds.TarWriter(os.path.join(save_dir, f"{mode}_tdiuc_%06d.tar" %(tar_id)), "w") as tar:
+            for res in result_tar:
+                tar.write(res)
+    print(f"Save: {image_num} images, {item_num} samples. Drop: {drop_num} samples")
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--question_file', default='/nxchinamobile2/shared/instruction_data/MultiInstruct/raw/TDIUC/Questions/OpenEnded_mscoco_val2014_questions.json')
-    parser.add_argument('--ann_file', default='/nxchinamobile2/shared/instruction_data/MultiInstruct/raw/TDIUC/Annotations/mscoco_val2014_annotations.json')
-    parser.add_argument('--seed', type=int, default=9271)
-    parser.add_argument('--N', type=int, default=-1, help='The number of examples for sampling, where -1 means selecting the full set.')
-    parser.add_argument('--save_file', default='/nxchinamobile2/shared/instruction_data/evaluation/tdiuc_sampled.jsonl')
-    args = parser.parse_args()
-
-    np.random.seed(args.seed)
-
-    tot_select, tot = select_samples(args.question_file, args.ann_file, args.N, args.save_file)
-    print(f"Selected {tot_select} samples from total of {tot}")
+    root_dir = "/nxchinamobile2/shared/mmbench_datasets"
+    for mode in ["val", "train"]:
+        print(f"process {mode}.")
+        process_data(root_dir, mode)
     
