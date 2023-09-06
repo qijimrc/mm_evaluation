@@ -31,7 +31,6 @@ def process_fn_GQAWebDataset(data_mode, args, mt,  src):
         for qa in dialogues:
             ret = {
                 "question_id": qa["question_id"],
-                "label_text": qa["txt"]
             }
             prompt = "Question: {} Short answer:".format(qa["prompt"])
             text_dict = mt.text_processor(qa["txt"], prompt)
@@ -55,14 +54,9 @@ class GQATask(BaseTask):
         dataset = SimpleDistributedWebDataset(urls, partial(process_fn_GQAWebDataset, data_mode, args, mt), args.seed)
         return dataset
 
-    def calc_scores(self, args, results_total, metrics: List[str]=['acc']) -> Dict:
+    def calc_scores(self, args, result_df) -> Dict:
         metrics_scores = {}
-        question_ids, preds, labels = results_total["question_ids"], results_total["preds"], results_total["labels"]
-        res_df = pd.DataFrame({"question_ids": question_ids, "preds": preds, "labels": labels})
-        # remove duplicates
-        res_df = res_df.drop_duplicates(subset=["question_ids"])
-        # compute scores
         metric_cls = Registry.get_metric_class('acc')
-        metrics_scores["Total"] = metric_cls.calc_scores(res_df["labels"], res_df["preds"])
+        metrics_scores["Total"] = metric_cls.calc_scores(result_df["txt"], result_df["preds"])
         return metrics_scores
         

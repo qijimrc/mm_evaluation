@@ -1,3 +1,9 @@
+'''
+@File    :   base_task.py
+@Time    :   2023/09
+@Author  :   Wenmeng Yu
+@Contact :   iyuge2@qq.com
+'''
 import os
 import copy
 import json
@@ -36,7 +42,7 @@ class BaseTask(object):
         self.need_evaluate = task_cfg.get('need_evaluate', False)
         self.max_source_length = task_cfg["data_params"].get("max_source_length", 1024)
         self.max_target_length = task_cfg["data_params"].get("max_target_length", 512)
-        self.no_prompt = task_cfg.get("no_prompt", False)
+        self.no_prompt = task_cfg["data_params"].get("no_prompt", False)
         self.custom_functions = custom_functions
     
     @NotImplementedError
@@ -60,26 +66,6 @@ class BaseTask(object):
             return func
         return partial(func, *args, **kwargs)
 
-    def create_dataset_function(self, mt, path, args):
-        path, args.data_mode = path.split("###")
-        urls = get_tar_files(path)
-        if hasattr(args, "random_urls") and args.random_urls:
-            urls = random.shuffle(urls)
-        dataset = SimpleDistributedWebDataset(urls, partial(self.process_fn_webDataset, args, mt), args.seed)
-        return dataset
-    
-    def update_params(self, args, param_types: list):
-        merge_args = copy.deepcopy(vars(args))
-        for param_type in param_types:
-            if hasattr(self.task_cfg, param_type):
-                for key, value in self.task_cfg[param_type].items():
-                    merge_args[key] = value
-        if hasattr(self.task_cfg, "data"):
-            for key, value in self.task_cfg.data.items():
-                tmp_path = os.path.join(args.data_home_dir, value)
-                merge_args[key] = [tmp_path]
-        return argparse.Namespace(**merge_args)
-    
     def get_data_mirror(self, args):
         """save all data to pd.DataFrame for computing metric scores
         """
@@ -105,6 +91,36 @@ class BaseTask(object):
         mirror_df = self.data_mirror[self.mode]
         print_rank0(f'[{self.mode}]: fetch data mirror end.')
         return mirror_df
+
+    def handle_metrics(self, args, results_total):
+        question_ids, preds = results_total["question_ids"], results_total["preds"]
+        res_df = pd.DataFrame({"question_id": question_ids, "preds": preds})
+        # remove duplicates
+        res_df = res_df.drop_duplicates(subset=["question_id"])
+        # get mirror data
+        mirror_df = self.get_data_mirror(args)
+        res_df = res_df.join(mirror_df, on="question_id", how="inner")
+        return self.calc_scores(self, args, res_df)
+
+    def create_dataset_function(self, mt, path, args):
+        path, args.data_mode = path.split("###")
+        urls = get_tar_files(path)
+        if hasattr(args, "random_urls") and args.random_urls:
+            urls = random.shuffle(urls)
+        dataset = SimpleDistributedWebDataset(urls, partial(self.process_fn_webDataset, args, mt), args.seed)
+        return dataset
+    
+    def update_params(self, args, param_types: list):
+        merge_args = copy.deepcopy(vars(args))
+        for param_type in param_types:
+            if hasattr(self.task_cfg, param_type):
+                for key, value in self.task_cfg[param_type].items():
+                    merge_args[key] = value
+        if hasattr(self.task_cfg, "data"):
+            for key, value in self.task_cfg.data.items():
+                tmp_path = os.path.join(args.data_home_dir, value)
+                merge_args[key] = [tmp_path]
+        return argparse.Namespace(**merge_args)
     
     def get_wds_size(self, path):
         urls = get_tar_files(path)
@@ -243,7 +259,6 @@ class BaseTask(object):
         context_len = int(data_b['context_length'][0])
         tokens = data_b['input_ids'][:, :context_len]
         data_b = self.preprocess_datab_eval(context_len, data_b)
-        label_text = data_b.pop('label_text')[0]
         question_id = data_b.pop('question_id')[0]
 
         model.add_mixin('auto-regressive', CachedAutoregressiveMixin())
@@ -252,7 +267,7 @@ class BaseTask(object):
 
         outputs = outputs.unsqueeze(0)
         pred = mt.tokenizer.batch_decode(outputs, skip_special_tokens=True)[0].strip()
-        metrics = {"question_ids": str(question_id), "labels": label_text, "preds": pred}
+        metrics = {"question_ids": str(question_id), "preds": pred}
         return torch.tensor(0, device=outputs.device), metrics
     
     def do_finetune(self, args, mt):
@@ -267,7 +282,7 @@ class BaseTask(object):
                       forward_step_function=self.forward_step,
                       forward_step_eval=self.partial_wo(self.forward_step_eval, mt),
                       create_dataset_function=self.partial_wo(self.create_dataset_function, mt),
-                      handle_metrics_function=self.partial_wo(self.calc_scores, finetune_args),
+                      handle_metrics_function=self.partial_wo(self.handle_metrics, finetune_args),
                       collate_fn=self.partial_wo(self.collate_fn, mt))
     
     def do_evaluate(self, args, mt) -> dict:
@@ -290,7 +305,7 @@ class BaseTask(object):
                                     model=mt.model,
                                     forward_step_eval=partial(self.forward_step_eval, mt),
                                     create_dataset_function=partial(self.create_dataset_function, mt),
-                                    handle_metrics_function=partial(self.calc_scores, test_args),
+                                    handle_metrics_function=partial(self.handle_metrics, test_args),
                                     collate_fn=partial(self.collate_fn, mt))
         metrics["total_loss"] = loss
         return metrics

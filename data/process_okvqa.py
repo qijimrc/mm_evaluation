@@ -1,60 +1,77 @@
-# -*- encoding: utf-8 -*-
-'''
-@File    :   process_okvqa.py
-@Time    :   2023/09/01 13:17:50
-@Author  :   Jiazheng Xu
-@Contact :   xjz22@mails.tsinghua.edu.cn
-@Description: Select samples from OKVQA dataset for benchmarking. Here are the points to be considered:
-    - Select 500 samples from the standard test set of OKVQA.
-    - Select the samples with a maximum diversity of question types.
-'''
+import os
 import json
-import argparse
-from typing import List
-import numpy as np
 import tqdm
-from itertools import combinations
-import torch
-from transformers import AutoModel, AutoTokenizer
+import pandas as pd
+import webdataset as wds
+from collections import Counter
+from utils import get_image_bytes
 
+def select_answer_by_confidence(answers):
+    confidenced_answers = [answer["answer"] for answer in answers if answer["answer_confidence"] == "yes"]
+    if len(confidenced_answers) == 0:
+        return None
+    counts = Counter(confidenced_answers)
+    counts = sorted(counts.items(), key=lambda x: x[1], reverse=True)
+    return counts[0][0]
 
-def select_samples(okvqa_questions_f: List, okvqa_anns_f: List, N: int=500, save_f='okvqa_sampled.json'):
-    ''' Select OKVQA samples to maintain the examples with the most diversified questions. (currently peforming random due to the cost)
-    '''
+def process_data(root_dir, save_dir, img_dir, mode):
+    okvqa_questions_f = os.path.join(root_dir, f"raw/OK-VQA/{mode}/OpenEnded_mscoco_{mode}2014_questions.json")
+    okvqa_anns_f = os.path.join(root_dir, f"raw/OK-VQA/{mode}/mscoco_{mode}2014_annotations.json")
     with open(okvqa_questions_f) as f1, open(okvqa_anns_f) as f2:
         questions, anns = json.load(f1), json.load(f2)
-
+    
     sorted_qs = sorted(questions['questions'], key=lambda x:x['question_id'])
     sorted_anns = sorted(anns['annotations'], key=lambda x:x['question_id'])
-    
-    sampling_ids = np.random.choice(range(len(sorted_qs)), min(N, len(sorted_qs)), replace=False)
-    tot_succeed = 0
-    qa_annotations = []
-    for idx in tqdm.tqdm(sampling_ids):
+
+    all_data, drop_num, item_num = {}, 0, 0
+    for idx in tqdm.tqdm(range(len(sorted_qs))):
         q_info, a_info = sorted_qs[idx], sorted_anns[idx]
-        # qa_annotations.append(q_info | a_info)
-        qa_annotations.append({**q_info, **a_info})
-        tot_succeed += 1
+        assert q_info["image_id"] == a_info["image_id"] and q_info["question_id"] == a_info["question_id"]
+        qa_info = q_info | a_info
+        img_path = os.path.join(img_dir, 'COCO_{}2014_{}{}.jpg'.format(mode, ''.join(['0']*(12-len(str(qa_info['image_id'])))), qa_info['image_id']))
+        if not os.path.exists(img_path):
+            drop_num += 1
+            print(f'not found {img_path}.')
+            continue
+        answer = select_answer_by_confidence(qa_info["answers"])
+        if answer is None:
+            drop_num += 1
+            print(f'no confidenced answer!')
+            continue
+        c_data = {k: qa_info[k] for k in ["question_id", "question_type", "question", "answer_type"]}
+        c_data["answer"] = answer
+        if img_path not in all_data:
+            all_data[img_path] = []
+        all_data[img_path].append(c_data)
+        item_num += 1
+    # save tarfiles
+    tar_id, result_tar, image_num = 0, [], 0
+    for key, value in tqdm.tqdm(all_data.items()):
+        c_tar = {
+            "__key__": "%06d" %image_num,
+            "json": value,
+            "jpg": get_image_bytes(key)
+        }
+        result_tar.append(c_tar)
+        image_num += 1
+        if len(result_tar) >= 1000:
+            with wds.TarWriter(os.path.join(save_dir, f"{mode}_okvqa_%06d.tar" %(tar_id)), "w") as tar:
+                for res in result_tar:
+                    tar.write(res)
+            result_tar = []
+            tar_id += 1
+    if len(result_tar) > 0:
+        with wds.TarWriter(os.path.join(save_dir, f"{mode}_okvqa_%06d.tar" %(tar_id)), "w") as tar:
+            for res in result_tar:
+                tar.write(res)
+    print(f"Save: {image_num} images, {item_num} samples. Drop: {drop_num} samples")
 
-    questions['annotations'] = qa_annotations
-    questions.pop('questions')
-    with open(save_f, 'w') as f:
-        json.dump(questions, f)
-    return tot_succeed
-
-
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--okvqa_question_file', default='/nxchinamobile2/shared/instruction_data/MultiInstruct/raw/OK-VQA/val/OpenEnded_mscoco_val2014_questions.json')
-    parser.add_argument('--okvqa_ann_file', default='/nxchinamobile2/shared/instruction_data/MultiInstruct/raw/OK-VQA/val/mscoco_val2014_annotations.json')
-    parser.add_argument('--seed', type=int, default=9271)
-    parser.add_argument('--N', type=int, default=500, help='The number of examples for sampling.')
-    parser.add_argument('--save_file', default='/nxchinamobile2/shared/instruction_data/evaluation/okvqa_sampled.json')
-    args = parser.parse_args()
-
-    np.random.seed(args.seed)
-
-    select_samples(args.okvqa_question_file, args.okvqa_ann_file, args.N, args.save_file)
-    
+if __name__ == "__main__":
+    root_dir = "/nxchinamobile2/shared/mmbench_datasets"
+    for mode in ["train", "val"]:
+        print(f'process {mode}')
+        img_dir = os.path.join(root_dir, f"raw/OK-VQA/images/{mode}2014")
+        save_dir = os.path.join(root_dir, f"processed/OK-VQA/{mode}")
+        if not os.path.exists(save_dir):
+            os.mkdir(save_dir)
+        process_data(root_dir, save_dir, img_dir, mode)

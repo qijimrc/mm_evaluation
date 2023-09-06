@@ -34,7 +34,6 @@ class OCRVQA(BaseTask):
             for qa in dialogues:
                 ret = {
                     "question_id": qa["question_id"],
-                    "label_text": qa["answer"]
                 }
                 # text
                 text_dict = mt.text_processor(qa["answer"], qa["prompt"])
@@ -44,19 +43,11 @@ class OCRVQA(BaseTask):
                 ret.update(img_dict)
                 yield ret
 
-    def calc_scores(self, args, results_total) -> Dict:
-        mirror_df = self.get_data_mirror(args)
-        
+    def calc_scores(self, args, results_df) -> Dict:
         metrics_scores = {}
-        question_ids, preds, labels = results_total["question_ids"], results_total["preds"], results_total["labels"]
-        res_df = pd.DataFrame({"question_ids": question_ids, "preds": preds, "labels": labels})
-        # remove duplicates
-        res_df = res_df.drop_duplicates(subset=["question_ids"])
-        # compute score
-        metric_cls = Registry.get_metric_class('acc')
-        metrics_scores["Avg"] = metric_cls.calc_scores(res_df["labels"], res_df["preds"])
-        for etype in mirror_df["type"].unique().tolist():
-            c_df = mirror_df[mirror_df["type"] == etype].drop_duplicates(subset=["question_id"])
-            c_df = res_df[res_df["question_ids"].isin(c_df["question_id"])]
-            metrics_scores[etype] = metric_cls.calc_scores(c_df["labels"], c_df["preds"])
+        metric_cls = Registry.get_metric_class('acc') # TODO: 指标待确认
+        metrics_scores["Avg"] = metric_cls.calc_scores(results_df["answer"], results_df["preds"])
+        for etype in results_df["type"].unique().tolist():
+            c_df = results_df[results_df["type"] == etype].drop_duplicates(subset=["question_id"])
+            metrics_scores[etype] = metric_cls.calc_scores(c_df["answer"], c_df["preds"])
         return metrics_scores

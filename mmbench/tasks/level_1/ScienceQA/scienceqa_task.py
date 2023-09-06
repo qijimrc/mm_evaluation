@@ -41,7 +41,6 @@ class ScienceQA(BaseTask):
             for qa in dialogues:
                 ret = {
                     "question_id": qa["question_id"],
-                    "label_text": qa["answer"]
                 }
                 # text
                 prompt = qa["prompt"]
@@ -55,32 +54,17 @@ class ScienceQA(BaseTask):
                 ret.update(img_dict)
                 yield ret
 
-    def calc_scores(self, args, results_total) -> Dict:
-        """ Calculate scores with specified metrics.
-          Args:
-            @examples:
-            @metrics:
-          Return:
-            A result dict keyed by metrics names.
-        """
-        mirror_df = self.get_data_mirror(args)
-
+    def calc_scores(self, args, results_df) -> Dict:
         metrics_scores = {}
-        question_ids, preds, labels = results_total["question_ids"], results_total["preds"], results_total["labels"]
-        res_df = pd.DataFrame({"question_ids": question_ids, "preds": preds, "labels": labels})
-        # remove duplicates
-        res_df = res_df.drop_duplicates(subset=["question_ids"])
-        # compute scores
         metric_cls = Registry.get_metric_class('acc')
-        metrics_scores["Avg"] = metric_cls.calc_scores(res_df["labels"], res_df["preds"])
+        metrics_scores["Avg"] = metric_cls.calc_scores(results_df["answer"], results_df["preds"])
         for ttype in self.ttypes: 
-            c_df = mirror_df[mirror_df["ttype"] == ttype].drop_duplicates(subset=["question_id"])
-            c_df = res_df[res_df["question_ids"].isin(c_df["question_id"])]
-            metrics_scores[ttype] = metric_cls.calc_scores(c_df["labels"], c_df["preds"])
+            c_df = results_df[results_df["ttype"] == ttype].drop_duplicates(subset=["question_id"])
+            metrics_scores[ttype] = metric_cls.calc_scores(c_df["answer"], c_df["preds"])
         # etypes
-        img_df = mirror_df[mirror_df["ttype"] == "IMG"].drop_duplicates(subset=["question_id"])
+        img_df = results_df[results_df["ttype"] == "IMG"].drop_duplicates(subset=["question_id"])
         for etype in self.etypes:
             c_qids = [row["question_id"] for i, row in img_df.iterrows() if etype in row["etype"]]
-            c_df = res_df[res_df["question_ids"].isin(set(c_qids))]
-            metrics_scores[etype] = metric_cls.calc_scores(c_df["labels"], c_df["preds"])
+            c_df = results_df[results_df["question_ids"].isin(set(c_qids))]
+            metrics_scores[etype] = metric_cls.calc_scores(c_df["answer"], c_df["preds"])
         return metrics_scores

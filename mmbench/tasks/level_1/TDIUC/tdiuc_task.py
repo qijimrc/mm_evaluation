@@ -44,7 +44,6 @@ class TDIUCTask(BaseTask):
             for qa in dialogues:
                 ret = {
                     "question_id": qa["question_id"],
-                    "label_text": qa["answer"]
                 }
                 # text
                 text_dict = mt.text_processor(qa["answer"], qa["question"])
@@ -54,18 +53,11 @@ class TDIUCTask(BaseTask):
                 ret.update(img_dict)
                 yield ret
 
-    def calc_scores(self, args, results_total) -> Dict:
-        mirror_df = self.get_data_mirror(args)
-
-        etypes = set(mirror_df["question_type"])
-        question_ids, preds, labels = results_total["question_ids"], results_total["preds"], results_total["labels"]
-        res_df = pd.DataFrame({"question_ids": question_ids, "preds": preds, "labels": labels})
-        
+    def calc_scores(self, args, results_df) -> Dict:
         metrics_scores = {}
         metric_cls = Registry.get_metric_class('acc')
-        metrics_scores["Avg"] = metric_cls.calc_scores(res_df["labels"], res_df["preds"])
-        for c_type in etypes:
-            c_df = mirror_df[mirror_df["question_type"] == c_type].drop_duplicates(subset=["question_id"])
-            c_df = res_df[res_df["question_ids"].isin(c_df["question_id"])]
-            metrics_scores[c_type] = metric_cls.calc_scores(c_df["labels"], c_df["preds"])
+        metrics_scores["Avg"] = metric_cls.calc_scores(results_df["answer"], results_df["preds"])
+        for c_type in results_df["question_type"].unique().tolist():
+            c_df = results_df[results_df["question_type"] == c_type].drop_duplicates(subset=["question_id"])
+            metrics_scores[c_type] = metric_cls.calc_scores(c_df["answer"], c_df["preds"])
         return metrics_scores

@@ -186,6 +186,36 @@ tasks:
         top_p: 0.4
         temperature: 0.8
     
+    GQA:
+      metrics: [acc]
+      data:
+        test_data: processed/NoCaps/val###test
+      need_finetune: false
+      need_evaluate: true
+      data_params:
+        max_source_length: 640
+        max_target_length: 128
+        iterable_dataset: true
+        block_size: 500
+        no_prompt: true
+      finetune_params:
+        log_interval: 20
+        train_iters: 2000
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 500
+        split: "1"
+        do_valid: false
+        do_test: false
+      eval_params:
+        eval_iters: 200
+        eval_interval: 500
+        eval_batch_size: 1
+        top_k: 1
+        top_p: 0.4
+        temperature: 0.8
+    
   # level_2:
 
   level_3:
