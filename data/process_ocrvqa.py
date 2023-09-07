@@ -10,7 +10,7 @@ from utils import get_image_bytes, save_data
 
 DATASET_NAWE = "OCRVQA"
 
-def process_data(raw_dir, save_dir, img_dir, mode):
+def process_data(root_dir, save_dir, img_dir, mode):
     drop_num, result_tar, tar_id, item_num = 0, [], 0, 0
     type_dict = {1: "train", 2: "val", 3: "test"}
     all_data = {}
@@ -19,7 +19,7 @@ def process_data(raw_dir, save_dir, img_dir, mode):
         for key, value in tqdm.tqdm(data.items()):
             if type_dict[value["split"]] != mode:
                 continue
-            image_path = os.path.join(img_dir, value["image"])
+            image_path = os.path.join(root_dir, img_dir, value["image"])
             if not os.path.exists(image_path):
                 print(f"image not found: {image_path}, will be skipped.")
                 drop_num += 1
@@ -45,7 +45,7 @@ def process_data(raw_dir, save_dir, img_dir, mode):
 
 if __name__ == "__main__":
     root_dir = "/nxchinamobile2/shared/mmbench_datasets"
-    img_dir = os.path.join(root_dir, "raw/OCR-VQA/amazon_images_folder")
+    img_dir = "raw/OCR-VQA/amazon_images_folder"
     for mode in ["train", "val", "test"]:
         save_dir = os.path.join(root_dir, f"processed/{DATASET_NAWE}/{mode}")
         if not os.path.exists(save_dir):

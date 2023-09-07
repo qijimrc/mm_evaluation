@@ -15,7 +15,7 @@ def _requirements():
 
 setup(
     name="MM_Evaluation",
-    version='0.0.1',
+    version='0.1.0',
     description="",
     long_description=Path("README.md").read_text(),
     long_description_content_type="text/markdown",

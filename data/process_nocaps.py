@@ -16,7 +16,7 @@ DATASET_NAWE = "NoCaps"
 
 def process_data(root_dir):
     anns_file = os.path.join(root_dir, f"raw/NoCaps/nocaps_val_4500_captions.json")
-    img_dir = os.path.join(root_dir, "raw/NoCaps/imgs")    
+    img_dir = "raw/NoCaps/imgs"    
     save_dir = os.path.join(root_dir, f"processed/NoCaps/val")
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
@@ -29,7 +29,7 @@ def process_data(root_dir):
     drop_num, item_num = 0, 0
     for ann in tqdm.tqdm(annotations):
         imginfo = id2imgs[ann['image_id']]
-        image_path = os.path.join(img_dir, imginfo['file_name'])
+        image_path = os.path.join(root_dir, img_dir, imginfo['file_name'])
         if not os.path.exists(image_path):
             print(f"not found: {image_path}")
             drop_num += 1

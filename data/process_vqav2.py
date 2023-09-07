@@ -2,6 +2,7 @@ import os
 import json
 import tqdm
 import torch
+import random
 import pandas as pd
 import webdataset as wds
 from typing import List
@@ -9,7 +10,9 @@ from itertools import combinations
 from collections import Counter
 from transformers import AutoModel, AutoTokenizer
 
-from utils import get_image_bytes
+from utils import get_image_bytes, save_data
+
+DATASET_NAWE = "VqaV2"
 
 def calc_sentences_similarities(model: AutoModel, tokenizer: AutoTokenizer, sentences:List):
     ''' Calculate the cosine similarities between all pairs of sentences based on the given model.
@@ -36,7 +39,7 @@ def process_data(root_dir, mode):
     annotaion_file = os.path.join(root_dir, f'raw/VQAV2/v2_mscoco_{mode}2014_annotations.json')
     save_dir = os.path.join(root_dir, f"processed/VQAV2/{mode}")
     if not os.path.exists(save_dir):
-        os.mkdir(save_dir)
+        os.makedirs(save_dir)
     if mode == "test":
         img_dir = os.path.join(root_dir, "raw/VQAV2/test2015")
     else:
@@ -79,25 +82,9 @@ def process_data(root_dir, mode):
         all_data[img_path].append(c_data)
         item_num += 1
     # save tarfiles
-    tar_id, result_tar, image_num = 0, [], 0
-    for key, value in tqdm.tqdm(all_data.items()):
-        c_tar = {
-            "__key__": "%06d" %image_num,
-            "json": value,
-            "jpg": get_image_bytes(key)
-        }
-        result_tar.append(c_tar)
-        image_num += 1
-        if len(result_tar) >= 1000:
-            with wds.TarWriter(os.path.join(save_dir, f"{mode}_vqav2_%06d.tar" %(tar_id)), "w") as tar:
-                for res in result_tar:
-                    tar.write(res)
-            result_tar = []
-            tar_id += 1
-    if len(result_tar) > 0:
-        with wds.TarWriter(os.path.join(save_dir, f"{mode}_vqav2_%06d.tar" %(tar_id)), "w") as tar:
-            for res in result_tar:
-                tar.write(res)
+    all_data = [{"image_path": key, "json": value} for key, value in all_data.items()]
+    random.shuffle(all_data)
+    image_num = save_data(all_data, save_dir, DATASET_NAWE, mode)
     print(f"Save: {image_num} images, {item_num} samples. Drop: {drop_num} samples")
     
 if __name__ == '__main__':

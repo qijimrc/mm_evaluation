@@ -26,6 +26,7 @@ def process_data(filename_list, save_dir, root_dir, img_dir):
                 continue
             image_path = os.path.join(root_dir, img_dir, data['imageId'] + ".jpg")
             if not os.path.exists(image_path):
+                print(f'not found: {image_path}')
                 drop_num += 1
                 continue
             prompt, txt, full_answer = data['question'], data['answer'], data['fullAnswer']

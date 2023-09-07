@@ -7,6 +7,7 @@
 import os
 import sys
 import copy
+import logging
 import argparse
 import jsonlines
 
@@ -14,14 +15,19 @@ if os.path.dirname(os.path.dirname(__file__)) not in sys.path:
   sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from sat.helpers import print_rank0
+from omegaconf import OmegaConf
 
 from datetime import datetime
 from mmbench.common.registry import Registry
-from omegaconf import OmegaConf
+from mmbench.common.utils import check_config
 
 
 class Evaluator:
-    def __init__(self, custom_cfg_path: str=None, custom_functions: dict=dict(), cfg_path: str=os.path.dirname(__file__)+'/config.yaml') -> None:
+    def __init__(self,
+                 custom_cfg_path: str=None,
+                 custom_functions: dict=dict(),
+                 cfg_path: str=os.path.dirname(__file__)+'/config.yaml',
+                 server_addr: str=None) -> None:
         """
         Args:
             custom_cfg_path (str, optional): _description_. Defaults to None.
@@ -31,9 +37,11 @@ class Evaluator:
         self.default_cfg = OmegaConf.load(cfg_path)
         if custom_cfg_path:
             self._update_params(OmegaConf.load(custom_cfg_path))
-
+        check_config(copy.deepcopy(self.default_cfg))
+        
+        server_addr = server_addr or self.default_cfg["server_addr"]
         self.mmeval_home = os.environ.get("MMEVAL_HOME", os.path.join(os.path.expanduser('~'), ".mmbench_eval_tmp"))
-        self.data_home_dir = self.default_cfg["home_env"][self.default_cfg["server_addr"]]["data_home"]
+        self.data_home_dir = self.default_cfg["home_env"][server_addr]["data_home"]
         
         self.tasks = {
             name: Registry.get_task_class(name)(self.default_cfg["tasks"][level][name], custom_functions.get(name, custom_functions))
@@ -86,16 +94,16 @@ class Evaluator:
                     with jsonlines.open(args.save_result_path, mode='a') as fp:
                         _tmp = {"task": task_name, "results": all_scores[task_name]}
                         fp.write(_tmp)
-                print_rank0('-'*100)
+                print_rank0('-'*80)
                 print_rank0(f'{task_name} results: {all_scores[task_name]}')
-                print_rank0('-'*100)
+                print_rank0('-'*80)
                 print_rank0(f'Task ({i+1}/{len(eval_tasks)}) end: {task_name}')
             except Exception as e:
                 import traceback
-                print_rank0(e)
-                print_rank0(traceback.format_exc())
+                print_rank0(e, level=logging.ERROR)
+                print_rank0(traceback.format_exc(), level=logging.ERROR)
                 failed_tasks.append(task_name)
-        print_rank0(f'Complete. Failed Tasks: {failed_tasks}')
+        print_rank0(f'Complete. Failed Tasks: {failed_tasks}', level=logging.ERROR)
         if os.path.exists(args.save_result_path):
             print_rank0(f'Results are saved in {args.save_result_path}')
         return all_scores

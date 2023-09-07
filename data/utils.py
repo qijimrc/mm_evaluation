@@ -1,5 +1,6 @@
 import os
 import io
+import shutil
 import jsonlines
 from tqdm import tqdm
 from PIL import Image
@@ -16,8 +17,9 @@ def generate_prompt_in_multi_choice(choices, question, language="zh"):
         start_op = chr(ord(start_op) + 1)
     return prompt
 
-def get_image_bytes(image_path):
+def get_image_bytes(image_path, img_save_path):
     img = Image.open(image_path).convert('RGB')
+    img.save(img_save_path, format="jpeg")
     img_bytes = io.BytesIO()
     img.save(img_bytes, format="jpeg")
     return img_bytes.getvalue()
@@ -34,24 +36,31 @@ def save_data(all_data, save_dir, dataset_name, mode):
     # 保存数据
     file_id, result_tar, result_meta, image_num = 0, [], [], 0
     for data in tqdm(all_data):
+        c_filename = f"{dataset_name}_{mode}_%06d" %file_id
+        if not os.path.exists(os.path.join(save_dir, c_filename)):
+            os.mkdir(os.path.join(save_dir, c_filename))
+
         join_id = "%09d" %(image_num)
         c_tar = {
             "__key__": join_id,
             "id": join_id,
-            "jpg": get_image_bytes(data["image_path"])
         }
         c_meta = {
             "key": join_id,
             "json": data["json"]
         }
+        if "image_path" in data and not data["image_path"].startswith("$$$"):
+            c_meta["image_path"] = os.path.join(os.path.join(c_filename, f'{join_id}.jpg'))
+            c_tar["jpg"] = get_image_bytes(data["image_path"], os.path.join(save_dir, c_meta["image_path"]))
+
         result_meta.append(c_meta)
         result_tar.append(c_tar)
         image_num += 1
         if len(result_tar) >= 1000:
-            save_files(save_dir, f"{dataset_name}_{mode}_%06d" %file_id, result_tar, result_meta)
+            save_files(save_dir, c_filename, result_tar, result_meta)
             file_id += 1
             result_tar, result_meta = [], []
 
     if len(result_tar) > 0:
-        save_files(save_dir, f"{dataset_name}_{mode}_%06d" %file_id, result_tar, result_meta)
+        save_files(save_dir, c_filename, result_tar, result_meta)
     return image_num

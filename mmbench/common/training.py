@@ -123,13 +123,6 @@ def training_main(args, model_cls, forward_step_function, create_dataset_functio
     if args.save and iteration != 0:  # TODO save
         save_checkpoint(iteration, model, optimizer, lr_scheduler, args)
 
-    # final testing
-    if args.do_test and test_data is not None:
-        prefix = 'the end of training for test data'
-        test_loss = evaluate_and_print_results(prefix, iter(test_data),
-            model, len(test_data) if args.strict_eval else args.eval_iters, args, timers, True, split='test', hooks=hooks)
-
-
 def setup_optimizer(args, model, config_params=None):
     """Setup model and optimizer."""
 

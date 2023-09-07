@@ -1,10 +1,13 @@
 import os
 import json
 import tqdm
+import random
 import pandas as pd
 import webdataset as wds
 from collections import Counter
-from utils import get_image_bytes
+from utils import get_image_bytes, save_data
+
+DATASET_NAWE = "TDIUC"
 
 def select_answer_by_confidence(answers):
     confidenced_answers = [answer["answer"] for answer in answers if answer["answer_confidence"] == "yes"]
@@ -19,7 +22,7 @@ def process_data(root_dir, mode):
     annotaion_file = os.path.join(root_dir, f'raw/TDIUC/Annotations/mscoco_{mode}2014_annotations.json')
     save_dir = os.path.join(root_dir, f"processed/TDIUC/{mode}")
     if not os.path.exists(save_dir):
-        os.mkdir(save_dir)
+        os.makedirs(save_dir)
     img_dir = f"raw/TDIUC/MSCOCO2014_{mode}2014"
     with open(question_file) as f1, open(annotaion_file) as f2:
         questions, anns = json.load(f1), json.load(f2)
@@ -55,26 +58,9 @@ def process_data(root_dir, mode):
             all_data[img_path] = []
         all_data[img_path].append(c_data)
         item_num += 1
-    # save tarfiles
-    tar_id, result_tar, image_num = 0, [], 0
-    for key, value in tqdm.tqdm(all_data.items()):
-        c_tar = {
-            "__key__": "%06d" %image_num,
-            "json": value,
-            "jpg": get_image_bytes(key)
-        }
-        result_tar.append(c_tar)
-        image_num += 1
-        if len(result_tar) >= 1000:
-            with wds.TarWriter(os.path.join(save_dir, f"{mode}_tdiuc_%06d.tar" %(tar_id)), "w") as tar:
-                for res in result_tar:
-                    tar.write(res)
-            result_tar = []
-            tar_id += 1
-    if len(result_tar) > 0:
-        with wds.TarWriter(os.path.join(save_dir, f"{mode}_tdiuc_%06d.tar" %(tar_id)), "w") as tar:
-            for res in result_tar:
-                tar.write(res)
+    all_data = [{"image_path": key, "json": value} for key, value in all_data.items()]
+    random.shuffle(all_data)
+    image_num = save_data(all_data, save_dir, DATASET_NAWE, mode)
     print(f"Save: {image_num} images, {item_num} samples. Drop: {drop_num} samples")
 
 

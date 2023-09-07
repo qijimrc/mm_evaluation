@@ -11,11 +11,11 @@ from utils import get_image_bytes, save_data
 
 DATASET_NAWE = "HalVQA"
 
-def process_data(raw_dir, save_dir, img_dir, mode):
+def process_data(root_dir, save_dir, img_dir, mode):
     all_data = {}
     drop_num, item_num = 0, 0
     eval_type_dict = {"0001": "existence", "0002": "color", "0003": "position"} 
-    with jsonlines.open(os.path.join(raw_dir, f"raw/HalVQA/data_{mode}.jsonl"), "r") as fp:
+    with jsonlines.open(os.path.join(root_dir, f"raw/HalVQA/data_{mode}.jsonl"), "r") as fp:
         for data in fp:
             image_path = os.path.join(img_dir, data["image"])
             if not os.path.exists(image_path):

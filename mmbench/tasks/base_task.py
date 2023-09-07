@@ -6,9 +6,8 @@
 '''
 import os
 import copy
-import json
 import torch
-import random
+import logging
 import argparse
 import numpy as np
 import pandas as pd
@@ -19,38 +18,33 @@ from collections import defaultdict
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader
 
-from sat import mpu, get_args
+from sat import mpu
 from sat.helpers import print_rank0
 from sat.model.mixins import CachedAutoregressiveMixin
 from sat.generation.autoregressive_sampling import filling_sequence
 from sat.generation.sampling_strategies import BaseStrategy, BeamSearchStrategy
-from sat.data_utils.webds import SimpleDistributedWebDataset
+from sat.data_utils.webds import MetaDistributedWebDataset
 
-from mmbench.common.registry import Registry
-from mmbench.common.example import Example
-from mmbench.common.utils import get_tar_files
+from mmbench.common.utils import find_all_files
 from mmbench.common.inference import testing_main
 from mmbench.common.training import training_main
-from typing import Any, Dict, List, Optional
+from mmbench.dataset import ItemDataset, WdsDataset
 
 class BaseTask(object):
     def __init__(self, task_cfg, custom_functions=dict(), **kwargs):
         self.data_mirror = {}
         self.task_cfg = task_cfg
-        self.metrics = task_cfg.metrics
         self.need_finetune = task_cfg.get('need_finetune', False)
         self.need_evaluate = task_cfg.get('need_evaluate', False)
         self.max_source_length = task_cfg["data_params"].get("max_source_length", 1024)
         self.max_target_length = task_cfg["data_params"].get("max_target_length", 512)
         self.no_prompt = task_cfg["data_params"].get("no_prompt", False)
+
         self.custom_functions = custom_functions
+        self.datasets = {}
     
     @NotImplementedError
     def calc_scores(self, args, results_total):
-        pass
-
-    @NotImplementedError
-    def process_fn_webDataset(self, args, mt, src):
         pass
 
     def custom_func(func):
@@ -70,25 +64,33 @@ class BaseTask(object):
         """save all data to pd.DataFrame for computing metric scores
         """
         print_rank0(f'[{self.mode}]: fetch data mirror begin.')
-        def get_data_from_wds(path):
-            urls = get_tar_files(path)
-            dataset = wds.WebDataset(urls).shuffle(1)
-            wds_dataloader = DataLoader(dataset, num_workers=1, batch_size=1)
-            top_keys = ["datatype", "question_id", "metadata"]
-            result, meta_keys = [], None
-            for item in wds_dataloader:
+        top_keys, meta_keys = ["datatype", "question_id"], None
+        def get_data_from_wds(dataloader):
+            result = []
+            for item in dataloader:
                 image_qa_all = eval(item["json"][0].decode('utf-8'))
                 if meta_keys is None and len(image_qa_all) > 0:
                     meta_keys = list(image_qa_all[0]["metadata"].keys())
                 for data in image_qa_all:
                     c_res = [data[k] for k in top_keys] + [data["metadata"][k] for k in meta_keys]
                     result.append(c_res)
-            res_df = pd.DataFrame(result, columns=top_keys + meta_keys, dtype=str)
-            return res_df
+            return result
+
+        def get_data_from_item(dataloader):
+            result = []
+            for item in dataloader:
+                qa = item["json"]
+                if meta_keys is None:
+                    meta_keys = list(qa["metadata"].keys())
+                c_res = [qa[k] for k in top_keys] + [qa["metadata"][k] for k in meta_keys]
+                result.append(c_res)
+            return result
+
         if self.mode not in self.data_mirror:
-            data_path = args.valid_data[0] if self.mode == "finetune" else args.test_data[0]
-            data_path = data_path.split("###")[0]
-            self.data_mirror[self.mode] = get_data_from_wds(data_path)
+            dataset = self.datasets["val"]  if self.mode == "finetune" else self.datasets["test"]
+            dataloader = DataLoader(dataset, num_workers=1, batch_size=1)
+            result = get_data_from_wds(dataloader) if args.iterable_dataset else get_data_from_item(dataloader)
+            self.data_mirror[self.mode] = pd.DataFrame(result, columns=top_keys + meta_keys, dtype=str)
         mirror_df = self.data_mirror[self.mode]
         print_rank0(f'[{self.mode}]: fetch data mirror end.')
         return mirror_df
@@ -104,11 +106,15 @@ class BaseTask(object):
         return self.calc_scores(self, args, res_df)
 
     def create_dataset_function(self, mt, path, args):
-        path, args.data_mode = path.split("###")
-        urls = get_tar_files(path)
-        if hasattr(args, "random_urls") and args.random_urls:
-            urls = random.shuffle(urls)
-        dataset = SimpleDistributedWebDataset(urls, partial(self.process_fn_webDataset, args, mt), args.seed)
+        path, data_mode = path.split("###")
+        other_attr = self.other_attr if hasattr(self, "other_attr") else []
+        if args.iterable_dataset:
+            urls = find_all_files(path)
+            web_dataset = WdsDataset(mt, args, data_mode, other_attr)
+            dataset = MetaDistributedWebDataset(urls, web_dataset.process_fn_dataset, args.seed)
+        else:
+            dataset = ItemDataset(mt, args, path, data_mode, other_attr)
+        self.datasets[data_mode] = dataset
         return dataset
     
     def update_params(self, args, param_types: list):
@@ -123,12 +129,9 @@ class BaseTask(object):
                 merge_args[key] = [tmp_path]
         return argparse.Namespace(**merge_args)
     
-    def get_wds_size(self, path):
-        urls = get_tar_files(path)
-        dataset = wds.WebDataset(urls).shuffle(1)
-        wds_dataloader = DataLoader(dataset, num_workers=1, batch_size=8)
-
+    def get_wds_size(self, dataset):
         wds_size = 0
+        wds_dataloader = DataLoader(dataset, num_workers=1, batch_size=8)
         for item in wds_dataloader:
             for i in range(len(item["__key__"])):
                 wds_size += len(eval(item["json"][i]))
@@ -298,15 +301,16 @@ class BaseTask(object):
         test_args.do_test = True
         test_args.strict_eval = True
         if test_args.strict_eval and test_args.iterable_dataset:
-            test_args.eval_iters = self.get_wds_size(test_args.test_data[0].split('###')[0])
+            if 'test' not in self.datasets:
+                self.datasets['test'] = self.create_dataset_function(mt, test_args.test_data[0], test_args)
+            test_args.eval_iters = self.get_wds_size(self.datasets['test'])
             test_args.strict_eval = False
-            print_rank0(f'Due to strict_eval and iterable_dataset, resize eval_iters: {args.eval_iters}')
+            print_rank0(f'Due to strict_eval and iterable_dataset, resize eval_iters: {test_args.eval_iters}', level=logging.WARNING)
         test_args.load = test_args.save if self.need_finetune else None
-        loss, metrics = testing_main(test_args,
+        _, metrics = testing_main(test_args,
                                     model=mt.model,
-                                    forward_step_eval=partial(self.forward_step_eval, mt),
-                                    create_dataset_function=partial(self.create_dataset_function, mt),
-                                    handle_metrics_function=partial(self.handle_metrics, test_args),
-                                    collate_fn=partial(self.collate_fn, mt))
-        metrics["total_loss"] = loss
+                                    forward_step_eval=self.partial_wo(self.forward_step_eval, mt),
+                                    create_dataset_function=self.partial_wo(self.create_dataset_function, mt),
+                                    handle_metrics_function=self.partial_wo(self.handle_metrics, test_args),
+                                    collate_fn=self.partial_wo(self.collate_fn, mt))
         return metrics

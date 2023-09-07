@@ -25,9 +25,7 @@ from sat import mpu
 from sat.training.model_io import load_checkpoint
 from sat.training.utils import Timers
 from sat.data_utils import make_loaders
-from sat.helpers import print_rank0, print_all
-
-from mmbench.common.utils import get_tar_files
+from sat.helpers import print_rank0
 
 def testing_main(args,
                  model,

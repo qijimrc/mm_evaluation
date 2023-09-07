@@ -12,8 +12,9 @@ from glob import glob
 from braceexpand import braceexpand
 from torch.utils.data import DataLoader
 from sat.data_utils.datasets import MetaDistributedWebDataset
+from sat.helpers import print_rank0
 
-def get_tar_files(path):
+def find_all_files(path):
     pathes = path.split(',')
     tar_files = []
     for p in pathes:
@@ -48,12 +49,8 @@ def collate_fn(examples):
     }
     return ret
         
-    
-urls = get_tar_files("/nxchinamobile2/shared/mmbench_datasets/processed/HalVQA/train")
-dataset = MetaDistributedWebDataset(urls, process_fn, 1234, meta_names=['json'])
-wds_dataloader = DataLoader(dataset, num_workers=1, batch_size=8, collate_fn=collate_fn)
-
-image_num, sample_num = 0, 0
-for item in wds_dataloader:
-    print(item)
-    break
+import logging
+print_rank0("test info", level=logging.INFO)
+print_rank0("test warning", level=logging.WARNING)
+print_rank0("test error", level=logging.ERROR)
+print("done")

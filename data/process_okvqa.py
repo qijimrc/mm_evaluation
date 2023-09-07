@@ -31,7 +31,7 @@ def process_data(root_dir, save_dir, img_dir, mode):
         q_info, a_info = sorted_qs[idx], sorted_anns[idx]
         assert q_info["image_id"] == a_info["image_id"] and q_info["question_id"] == a_info["question_id"]
         qa_info = q_info | a_info
-        img_path = os.path.join(img_dir, 'COCO_{}2014_{}{}.jpg'.format(mode, ''.join(['0']*(12-len(str(qa_info['image_id'])))), qa_info['image_id']))
+        img_path = os.path.join(root_dir, img_dir, 'COCO_{}2014_{}{}.jpg'.format(mode, ''.join(['0']*(12-len(str(qa_info['image_id'])))), qa_info['image_id']))
         if not os.path.exists(img_path):
             drop_num += 1
             print(f'not found {img_path}.')
@@ -43,7 +43,7 @@ def process_data(root_dir, save_dir, img_dir, mode):
             continue
         c_data = {
             "datatype": "normal_qa",
-            "quesion_id": qa_info["question_id"],
+            "question_id": qa_info["question_id"],
             "metadata": {
                 "question": qa_info["question"],
                 "answer": answer,
@@ -63,7 +63,7 @@ if __name__ == "__main__":
     root_dir = "/nxchinamobile2/shared/mmbench_datasets"
     for mode in ["train", "val"]:
         print(f'process {mode}')
-        img_dir = os.path.join(root_dir, f"raw/OK-VQA/images/{mode}2014")
+        img_dir = f"raw/OK-VQA/images/{mode}2014"
         save_dir = os.path.join(root_dir, f"processed/OK-VQA/{mode}")
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
