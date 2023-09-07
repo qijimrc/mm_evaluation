@@ -45,9 +45,9 @@ def get_box(b):
 def build_sample_input(question, answer, boxes, scale, new_width, new_height):
     new_boxes = [refine_box(box, scale, new_width, new_height) for box in boxes]
     box_txt = [get_text_by_box([box], sep="") for box in new_boxes]
-    prompt = f"""{question} Select from:\nA. {box_txt[0]}\nB. {box_txt[1]}\nC. {box_txt[2]}\nD. {box_txt[3]}\n Answer: """
-    txt = chr(ord('A')+answer)
-    return prompt, txt
+    # prompt = f"""{question} Select from:\nA. {box_txt[0]}\nB. {box_txt[1]}\nC. {box_txt[2]}\nD. {box_txt[3]}\n Answer: """
+    # txt = chr(ord('A')+answer)
+    return box_txt 
 
 def process_data(root_dir, mode):
     data_file = os.path.join(root_dir, 'raw/Visual7W/dataset_v7w_pointing.json')
@@ -82,12 +82,16 @@ def process_data(root_dir, mode):
             random.shuffle(permute)
             rand_boxes = [boxes[i] for i in permute]
             answer = permute.index(0)
-            prompt, txt = build_sample_input(qa['question'], answer, rand_boxes, scale, new_width, new_height)
+            choices = build_sample_input(qa['question'], answer, rand_boxes, scale, new_width, new_height)
             c_data = {
+                "datatype": "multichoice",
                 "question_id": qa["qa_id"],
-                "answer": txt,
-                "prompt": prompt,
-                "type": qa["type"]
+                "metadata": {
+                    "question": qa["question"],
+                    "choices": choices,
+                    "answer": answer,
+                    "type": qa["type"]
+                }
             }
             if image_path not in all_data:
                 all_data[image_path] = []

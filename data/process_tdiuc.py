@@ -41,8 +41,16 @@ def process_data(root_dir, mode):
             drop_num += 1
             print(f'no confidenced answer!')
             continue
-        c_data = {k: qa_info[k] for k in ["question_id", "question_type", "question", "ans_source"]}
-        c_data["answer"] = answer
+        c_data = {
+            "datatype": "normal_qa",
+            "quesion_id": qa_info["question_id"],
+            "metadata": {
+                "question": qa_info["question"],
+                "answer": answer,
+                "question_type": qa_info["question_type"],
+                "ans_source": qa_info["ans_source"]
+            }
+        }
         if img_path not in all_data:
             all_data[img_path] = []
         all_data[img_path].append(c_data)

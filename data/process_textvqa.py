@@ -27,11 +27,15 @@ def process_data(root_dir, mode):
             drop_num += 1
         if image_path not in all_results:
             all_results[image_path] = []
-        all_results[image_path].append({
+        c_data = {
+            "datatype": "normal_qa",
             "question_id": c_data["question_id"],
-            "question": c_data["question"],
-            "answer": answer
-        })
+            "metadata": {
+                "question":c_data["question"],
+                "answer": answer
+            }
+        }
+        all_results[image_path].append(c_data)
         item_num += 1
     # save tarfiles
     tar_id, result_tar, image_num = 0, [], 0

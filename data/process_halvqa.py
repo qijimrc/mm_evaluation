@@ -1,18 +1,19 @@
 import io
 import os
+import random
 import jsonlines
 import pandas as pd
 import webdataset as wds
 
 from PIL import Image
 from tqdm import tqdm
-from utils import get_image_bytes, generate_prompt_in_multi_choice
+from utils import get_image_bytes, save_data
+
+DATASET_NAWE = "HalVQA"
 
 def process_data(raw_dir, save_dir, img_dir, mode):
-    if not os.path.exists(save_dir):
-        os.mkdir(save_dir)
     all_data = {}
-    drop_num, result_tar, tar_id, item_num = 0, [], 0, 0
+    drop_num, item_num = 0, 0
     eval_type_dict = {"0001": "existence", "0002": "color", "0003": "position"} 
     with jsonlines.open(os.path.join(raw_dir, f"raw/HalVQA/data_{mode}.jsonl"), "r") as fp:
         for data in fp:
@@ -23,35 +24,22 @@ def process_data(raw_dir, save_dir, img_dir, mode):
                 continue
             eval_type = eval_type_dict[data["eval_type"]] if data["eval_type"] in eval_type_dict.keys() else data["eval_type"]
             json_data = {
+                "datatype": "multichoice",
                 "question_id": "%06d" %item_num,
-                "eval_type": eval_type,
-                "answer": data["answer"],
-                "prompt": generate_prompt_in_multi_choice(data["choices"], data["question"], language="zh"),
+                "metadata": {
+                    "question": data["question"],
+                    "choices": data["choices"],
+                    "answer": data["answer"],
+                    "type": eval_type,
+                }
             }
             if image_path not in all_data:
                 all_data[image_path] = []
             all_data[image_path].append(json_data)
             item_num += 1
-
-    image_num = 0
-    for image_path, meta_data in tqdm(all_data.items()):
-        c_tar = {
-            "__key__": "%06d" %image_num,
-            "jpg": get_image_bytes(image_path),
-            "json": meta_data
-        }
-        result_tar.append(c_tar)
-        image_num += 1
-        if len(result_tar) >= 1000:
-            with wds.TarWriter(os.path.join(save_dir, f"{mode}_halvqa_%06d.tar" %(tar_id)), "w") as tar:
-                for res in result_tar:
-                    tar.write(res)
-            result_tar = []
-            tar_id += 1
-    if len(result_tar) > 0:
-        with wds.TarWriter(os.path.join(save_dir, f"{mode}_halvqa_%06d.tar" %(tar_id)), "w") as tar:
-            for res in result_tar:
-                tar.write(res)
+    all_data = [{"image_path": key, "json": value} for key, value in all_data.items()]
+    random.shuffle(all_data)
+    image_num = save_data(all_data, save_dir, DATASET_NAWE, mode)
     print(f"Save: {image_num} images, {item_num} samples. Drop: {drop_num} samples")
 
 if __name__ == "__main__":
@@ -61,5 +49,5 @@ if __name__ == "__main__":
         print(f'process {mode}')
         save_dir = os.path.join(root_dir, f"processed/HalVQA/{mode}")
         if not os.path.exists(save_dir):
-            os.mkdir(save_dir)
+            os.makedirs(save_dir)
         process_data(root_dir, save_dir, img_dir, mode)

@@ -39,18 +39,17 @@ This benchmark evaluate the MLLMs's abilities from 3 levels:
         - attribute hallucination
     + Interactions in Embodied Environment
 
-### Input/Output Format
-Each example in our benchmark is conformed with a unified format:
-
+### Input Format
+- Data format in web dataset
 ```python
 {
-    'task': # the task name
-    'idx': # the example index
-    'instruction': # task instruction
-    'img_path': # the vision path
-    'context': # the optinal context for input
-    'question': # the input question
-    'answers':  # the list of language answers
+    "__key__": , # uni key
+    "jpg": , # image bytes
+    "json": [{
+        "datatype": str, # 数据类型，与数据加载函数对应
+        "question_id": , # 问答 id，全局递增
+        "metadata": {}, # 格式定义见后文
+    }...] # 同一张图片的所有问答，组装成 list
 }
 ```
 

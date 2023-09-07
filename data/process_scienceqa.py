@@ -59,13 +59,24 @@ def process_data(root_dir, save_dir, img_dir, mode):
                 all_results[image_path] = []
             for ttype in train_type:
                 c_res = {
-                    "question_id": item_num, 
-                    "prompt": generate_prompt_in_multi_choice(value["choices"], value["question"]), 
-                    "answer": chr(ord('A') + value["answer"]), 
-                    "context": value['hint'] if value['hint'] else "",
-                    "ttype": ttype, 
-                    "etype": ex_types
+                    "datatype": "multichoice",
+                    "question_id": "%09d" %item_num,
+                    "metadata": {
+                        "question": value["question"],
+                        "choices": value["choices"],
+                        "answer": value["answer"],
+                        "ttype": ttype,
+                        "etype": '$$$'.join(ex_types)
+                    }
                 }
+                # c_res = {
+                #     "question_id": item_num, 
+                #     "prompt": generate_prompt_in_multi_choice(value["choices"], value["question"]), 
+                #     "answer": chr(ord('A') + value["answer"]), 
+                #     "context": value['hint'] if value['hint'] else "",
+                #     "ttype": ttype, 
+                #     "etype": ex_types
+                # }
                 all_results[image_path].append(c_res)
             item_num += 1
     # save tarfiles

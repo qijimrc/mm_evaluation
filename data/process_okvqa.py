@@ -1,10 +1,13 @@
 import os
 import json
 import tqdm
+import random
 import pandas as pd
 import webdataset as wds
 from collections import Counter
-from utils import get_image_bytes
+from utils import get_image_bytes, save_data
+
+DATASET_NAWE = "OKVQA"
 
 def select_answer_by_confidence(answers):
     confidenced_answers = [answer["answer"] for answer in answers if answer["answer_confidence"] == "yes"]
@@ -38,32 +41,22 @@ def process_data(root_dir, save_dir, img_dir, mode):
             drop_num += 1
             print(f'no confidenced answer!')
             continue
-        c_data = {k: qa_info[k] for k in ["question_id", "question_type", "question", "answer_type"]}
-        c_data["answer"] = answer
+        c_data = {
+            "datatype": "normal_qa",
+            "quesion_id": qa_info["question_id"],
+            "metadata": {
+                "question": qa_info["question"],
+                "answer": answer,
+                "question_type": qa_info["question_type"]
+            }
+        }
         if img_path not in all_data:
             all_data[img_path] = []
         all_data[img_path].append(c_data)
         item_num += 1
-    # save tarfiles
-    tar_id, result_tar, image_num = 0, [], 0
-    for key, value in tqdm.tqdm(all_data.items()):
-        c_tar = {
-            "__key__": "%06d" %image_num,
-            "json": value,
-            "jpg": get_image_bytes(key)
-        }
-        result_tar.append(c_tar)
-        image_num += 1
-        if len(result_tar) >= 1000:
-            with wds.TarWriter(os.path.join(save_dir, f"{mode}_okvqa_%06d.tar" %(tar_id)), "w") as tar:
-                for res in result_tar:
-                    tar.write(res)
-            result_tar = []
-            tar_id += 1
-    if len(result_tar) > 0:
-        with wds.TarWriter(os.path.join(save_dir, f"{mode}_okvqa_%06d.tar" %(tar_id)), "w") as tar:
-            for res in result_tar:
-                tar.write(res)
+    all_data = [{"image_path": key, "json": value} for key, value in all_data.items()]
+    random.shuffle(all_data)
+    image_num = save_data(all_data, save_dir, DATASET_NAWE, mode)
     print(f"Save: {image_num} images, {item_num} samples. Drop: {drop_num} samples")
 
 if __name__ == "__main__":
@@ -73,5 +66,5 @@ if __name__ == "__main__":
         img_dir = os.path.join(root_dir, f"raw/OK-VQA/images/{mode}2014")
         save_dir = os.path.join(root_dir, f"processed/OK-VQA/{mode}")
         if not os.path.exists(save_dir):
-            os.mkdir(save_dir)
+            os.makedirs(save_dir)
         process_data(root_dir, save_dir, img_dir, mode)

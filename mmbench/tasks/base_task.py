@@ -74,16 +74,17 @@ class BaseTask(object):
             urls = get_tar_files(path)
             dataset = wds.WebDataset(urls).shuffle(1)
             wds_dataloader = DataLoader(dataset, num_workers=1, batch_size=1)
-            result, qa_keys = [], None
+            top_keys = ["datatype", "question_id", "metadata"]
+            result, meta_keys = [], None
             for item in wds_dataloader:
                 image_qa_all = eval(item["json"][0].decode('utf-8'))
-                if qa_keys is None and len(image_qa_all) > 0:
-                    qa_keys = list(image_qa_all[0].keys())
+                if meta_keys is None and len(image_qa_all) > 0:
+                    meta_keys = list(image_qa_all[0]["metadata"].keys())
                 for data in image_qa_all:
-                    result.append([data[k] for k in qa_keys])
-            res_df = pd.DataFrame(result, columns=qa_keys, dtype=str)
+                    c_res = [data[k] for k in top_keys] + [data["metadata"][k] for k in meta_keys]
+                    result.append(c_res)
+            res_df = pd.DataFrame(result, columns=top_keys + meta_keys, dtype=str)
             return res_df
-
         if self.mode not in self.data_mirror:
             data_path = args.valid_data[0] if self.mode == "finetune" else args.test_data[0]
             data_path = data_path.split("###")[0]
