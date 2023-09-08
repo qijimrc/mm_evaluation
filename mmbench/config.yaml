@@ -19,6 +19,7 @@ tasks:
         max_source_length: 640
         max_target_length: 128
         iterable_dataset: false
+        train_data_load_mode: epoch_round
         block_size: 1000
       finetune_params:
         log_interval: 20
@@ -47,6 +48,7 @@ tasks:
         max_source_length: 640
         max_target_length: 128
         iterable_dataset: false
+        train_data_load_mode: epoch_round
         block_size: 1000
       finetune_params:
         log_interval: 20
@@ -75,6 +77,7 @@ tasks:
         max_source_length: 640
         max_target_length: 128
         iterable_dataset: false
+        train_data_load_mode: epoch_round
         block_size: 500
       finetune_params:
         log_interval: 20
@@ -102,6 +105,7 @@ tasks:
         max_source_length: 640
         max_target_length: 128
         iterable_dataset: false
+        train_data_load_mode: epoch_round
         block_size: 500
       finetune_params:
         log_interval: 20
@@ -128,6 +132,7 @@ tasks:
         max_source_length: 640
         max_target_length: 128
         iterable_dataset: false
+        train_data_load_mode: epoch_round
         block_size: 500
       finetune_params:
         log_interval: 20
@@ -155,6 +160,7 @@ tasks:
         max_source_length: 640
         max_target_length: 128
         iterable_dataset: false
+        train_data_load_mode: epoch_round
         block_size: 500
       finetune_params:
         log_interval: 20
@@ -181,6 +187,7 @@ tasks:
         max_source_length: 640
         max_target_length: 128
         iterable_dataset: false
+        train_data_load_mode: epoch_round
         block_size: 1000
         no_prompt: true
       finetune_params:
@@ -207,6 +214,7 @@ tasks:
         max_source_length: 640
         max_target_length: 128
         iterable_dataset: false
+        train_data_load_mode: epoch_round
         block_size: 500
         no_prompt: true
       finetune_params:
@@ -235,6 +243,7 @@ tasks:
         max_source_length: 640
         max_target_length: 128
         iterable_dataset: false
+        train_data_load_mode: epoch_round
         block_size: 500
         no_prompt: true
       finetune_params:
@@ -263,6 +272,7 @@ tasks:
         max_source_length: 640
         max_target_length: 128
         iterable_dataset: false
+        train_data_load_mode: epoch_round
         block_size: 500
       finetune_params:
         log_interval: 20

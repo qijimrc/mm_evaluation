@@ -27,13 +27,17 @@ class ItemDataset(Dataset, BaseDataset):
                 for json_data in reader:
                     qa_num += len(json_data["json"])
                     image_num += 1
-                    json_data["image_path"] = os.path.join(jsonl_dir, json_data["image_path"])
+                    if "image_path" in json_data:
+                        json_data["image_path"] = os.path.join(jsonl_dir, json_data["image_path"])
                     if self.data_mode == "train":
                         data.append(json_data)
                     else:
                         # inference: val / test
                         for qa in json_data["json"]:
-                            data.append({"image_path": json_data["image_path"], "json": qa})
+                            if "image_path" in json_data:
+                                data.append({"image_path": json_data["image_path"], "json": qa})
+                            else:
+                                data.append({"json": qa})
         print_rank0(f"find {image_num} image-level samples in {qa_num} qa-level samples in all...")
         return data
     
@@ -55,17 +59,17 @@ class ItemDataset(Dataset, BaseDataset):
         # text
         dialogues = data['json']
         assert len(dialogues) >= 1, f"json length <= 1 in {data}"
-        if self.args.data_mode == "train":
+        if self.data_mode == "train":
             if self.args.train_data_load_mode == "random":
                 dialogues = random.choice(dialogues)
             elif self.args.train_data_load_mode == "epoch_round":
-                qa_key = f'{data["image_path"]}::{dialogues["question_id"]}'
+                qa_key = data["key"]
                 # if not cache, start from a random index
                 load_id = (self.image_qa_cache.get(qa_key, random.randint(0, len(dialogues)-1)-1) + 1) % len(dialogues)
                 self.image_qa_cache[qa_key] = load_id
                 dialogues = dialogues[load_id]
             else:
-                raise ValueError("Unknown train_data_load_mode: {}".format(self.args.train_data_load_mode))
+                raise ValueError("Unknown train_data_load_mode: {}, support random / epoch_round".format(self.args.train_data_load_mode))
         text_dict = eval(f'self.{dialogues["datatype"]}')(dialogues["metadata"])
         if text_dict == None:
             print_rank0(f"Process text failed. Please check the max_target_length & max_source_length.\n The data is {dialogues['metadata']}", level=logging.WARNING)

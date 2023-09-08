@@ -138,7 +138,7 @@ def report_evaluate_metrics(summary_writer, prefix, loss, ppl, step, avg_metrics
     string += 'loss: {:.6E} | '.format(loss)
     string += 'PPL: {:.6E}'.format(ppl)
     for key in avg_metrics:
-        string += ' {} {:.6E} |'.format(key, avg_metrics[key].item())
+        string += ' {} {:.6E} |'.format(key, avg_metrics[key])
     length = len(string) + 1
     print_rank0('-' * 100)
     print_rank0('-' * length)

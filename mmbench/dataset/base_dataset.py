@@ -35,17 +35,18 @@ class BaseDataset(object):
         if self.args.no_prompt:
             text_dict = self.process_text(metadata["answer"], "")
         else:
-            prompt = random.choice(self.templates["Caption"]).replace('<image>', '')
+            language_zh = is_chinese(metadata["answer"])
+            template = self.templates_zh if language_zh else self.templates_en
+            prompt = random.choice(template["Caption"]).replace('<image>', '')
             text_dict = self.process_text(metadata["answer"], prompt)
         return text_dict
 
     def multichoice(self, metadata):
         def generate_prompt_in_multi_choice(choices, question):
             language_zh = is_chinese(question)
-            if language_zh:
-                choice_prompt = random.choice(self.templates_zh["Choices"])
-            else:
-                choice_prompt = random.choice(self.templates_en["Choices"])
+            template = self.templates_zh if language_zh else self.templates_en
+            choice_prompt = template["Choices"]
+            choice_prompt = random.choice(choice_prompt)
             prompt = question + "\n" + choice_prompt + "\n"
             start_op = 'A'
             for item in choices:
@@ -54,5 +55,6 @@ class BaseDataset(object):
             prompt += "回答: " if language_zh else "Answer: "
             return prompt
         prompt = generate_prompt_in_multi_choice(metadata["choices"], metadata["question"])
-        text_dict = self.process_text(metadata["answer"], prompt)
+        answer = chr(ord('A')+metadata["answer"]) if isinstance(metadata["answer"], int) else metadata["answer"]
+        text_dict = self.process_text(answer, prompt)
         return text_dict

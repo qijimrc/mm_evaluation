@@ -63,15 +63,7 @@ def training_main(args, model_cls, forward_step_function, create_dataset_functio
     else:
         model = model_cls
 
-    # Config model IO
-    if args.load is not None:
-        args.iteration = load_checkpoint(model, args)
-        # if we don't load optim_states, filelock is no more needed.
-        # with FileLock("/root/checkpoint_lock", timeout=-1):
-        #     args.iteration = load_checkpoint(model, optimizer, args)
-    else:
-        args.iteration = 0
-    
+    args.iteration = 0
     torch.distributed.barrier()
 
     # init hook before building deepspeed model and optimizer

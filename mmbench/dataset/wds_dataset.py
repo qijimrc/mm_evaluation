@@ -31,12 +31,12 @@ class WdsDataset(BaseDataset):
                 continue
             img_dict = self.process_img(img)
             # json
-            dialogues = json.loads(data['json'].decode("utf-8"))
-            if self.args.data_mode == "train":
+            dialogues = data['json']
+            if self.data_mode == "train":
                 if self.args.train_data_load_mode == "random":
                     dialogues = [random.choice(dialogues)]
                 elif self.args.train_data_load_mode == "epoch_round":
-                    qa_key = f'{data["__url__"]}::{qa["question_id"]}'
+                    qa_key = data["key"]
                     # if not cache, start from a random index
                     load_id = (self.image_qa_cache.get(qa_key, random.randint(0, len(dialogues)-1)-1) + 1) % len(dialogues)
                     self.image_qa_cache[qa_key] = load_id
@@ -55,5 +55,3 @@ class WdsDataset(BaseDataset):
                     if attr in qa:
                         ret[attr] = qa[attr]
                 yield ret
-                
-    

@@ -15,8 +15,8 @@ class HalVQATask(BaseTask):
         metrics_scores = {}
         metric_cls = Registry.get_metric_class('acc')
         metrics_scores["Total"] = metric_cls.calc_scores(result_df["answer"], result_df["preds"])
-        for ext in result_df["eval_type"].unique().tolist():
-            c_df = result_df[result_df["eval_type"] == ext].drop_duplicates(subset=["question_id"])
+        for ext in result_df["type"].unique().tolist():
+            c_df = result_df[result_df["type"] == ext].drop_duplicates(subset=["question_id"])
             metrics_scores[ext] = metric_cls.calc_scores(c_df["answer"], c_df["preds"])
         return metrics_scores
         

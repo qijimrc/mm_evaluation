@@ -103,7 +103,9 @@ class Evaluator:
                 print_rank0(e, level=logging.ERROR)
                 print_rank0(traceback.format_exc(), level=logging.ERROR)
                 failed_tasks.append(task_name)
-        print_rank0(f'Complete. Failed Tasks: {failed_tasks}', level=logging.ERROR)
+        print_rank0('Complete.')
+        if len(failed_tasks) > 0:
+            print_rank0(f'Failed Tasks: {failed_tasks}', level=logging.ERROR)
         if os.path.exists(args.save_result_path):
             print_rank0(f'Results are saved in {args.save_result_path}')
         return all_scores

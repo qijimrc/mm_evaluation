@@ -23,6 +23,6 @@ class ScienceQA(BaseTask):
         img_df = results_df[results_df["ttype"] == "IMG"].drop_duplicates(subset=["question_id"])
         for etype in self.etypes:
             c_qids = [row["question_id"] for i, row in img_df.iterrows() if etype in row["etype"]]
-            c_df = results_df[results_df["question_ids"].isin(set(c_qids))]
+            c_df = results_df[results_df["question_id"].isin(set(c_qids))]
             metrics_scores[etype] = metric_cls.calc_scores(c_df["answer"], c_df["preds"])
         return metrics_scores

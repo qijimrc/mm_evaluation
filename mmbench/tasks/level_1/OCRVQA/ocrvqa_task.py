@@ -18,7 +18,7 @@ class OCRVQA(BaseTask):
         
     def calc_scores(self, args, results_df) -> Dict:
         metrics_scores = {}
-        metric_cls = Registry.get_metric_class('acc') # TODO: 指标待确认
+        metric_cls = Registry.get_metric_class('acc')
         metrics_scores["Avg"] = metric_cls.calc_scores(results_df["answer"], results_df["preds"])
         for etype in results_df["type"].unique().tolist():
             c_df = results_df[results_df["type"] == etype].drop_duplicates(subset=["question_id"])
