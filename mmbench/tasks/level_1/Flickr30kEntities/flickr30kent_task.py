@@ -7,7 +7,7 @@ import json
 
 
 
-@Registry.register_task('Flickr30kEntities')
+# @Registry.register_task('Flickr30kEntities')
 class Flickr30kEntities(BaseTask):
     def __init__(self, task_cfg):
 

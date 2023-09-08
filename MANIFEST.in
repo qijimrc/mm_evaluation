@@ -1,3 +1,3 @@
 include requirements.txt
 global-exclude __pycache__/*
-recursive-include mmbench *.yaml
+recursive-include mmbench *.yaml *.csv *.json *.txt *.png

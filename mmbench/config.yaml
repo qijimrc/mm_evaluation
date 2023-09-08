@@ -1,87 +1,292 @@
-# Configure the data paths for evaluation
+# Configure the task for evaluation
 
-level_1:
+server_addr: ningxia
 
-  VQAv2:
-    # annotation files
-    anns_paths: /nxchinamobile2/shared/instruction_data/evaluation/vqav2_sampled.json
-    # directory of images
-    img_dir: /nxchinamobile2/shared/img_datasets/MSCOCO/MSCOCO2014/val2014
-    # which metrics to be used for measurements, supporting [vqa_acc, ...]
-    metrics: [vqa_acc, gpt35_metric]
-    # whether to be used for current evaluation
-    eval: True
+home_env:
+  ningxia:
+    data_home: /nxchinamobile2/shared/mmbench_datasets
 
-  Flickr30kEntities:
-    anns_paths: /nxchinamobile2/shared/instruction_data/evaluation/flickr3kent_sampled.jsonl
-    img_dir: /nxchinamobile2/shared/img_datasets/shikra/flickr30k-images
-    eval: true
-    metrics: [grounding]
-    n_samples: 500
-    seed: 9271
+tasks:
+  level_1:
+    ScienceQA:
+      data:
+        train_data: processed/ScienceQA/train###train
+        valid_data: processed/ScienceQA/val###val
+        test_data: processed/ScienceQA/test###test
+      need_finetune: true
+      need_evaluate: true
+      data_params:
+        max_source_length: 640
+        max_target_length: 128
+        iterable_dataset: false
+        train_data_load_mode: epoch_round
+        block_size: 1000
+      finetune_params:
+        log_interval: 20
+        train_iters: 2000
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 500
+        split: "1"
+      eval_params:
+        eval_iters: 100
+        eval_interval: 500
+        eval_batch_size: 1
+        top_k: 10
+        top_p: 0.4
+        temperature: 0.8
+    
+    Visual7W:
+      data:
+        train_data: processed/Visual7W/train###train
+        valid_data: processed/Visual7W/val###val
+        test_data: processed/Visual7W/test###test
+      need_finetune: true
+      need_evaluate: true
+      data_params:
+        max_source_length: 640
+        max_target_length: 128
+        iterable_dataset: false
+        train_data_load_mode: epoch_round
+        block_size: 1000
+      finetune_params:
+        log_interval: 20
+        train_iters: 5000
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 1000
+        split: "1"
+      eval_params:
+        eval_iters: 200
+        eval_interval: 1000
+        eval_batch_size: 1
+        top_k: 10
+        top_p: 0.4
+        temperature: 0.8
+    
+    OCRVQA:
+      data:
+        train_data: processed/OCR-VQA/train###train
+        valid_data: processed/OCR-VQA/val###val
+        test_data: processed/OCR-VQA/test###test
+      need_finetune: true
+      need_evaluate: true
+      data_params:
+        max_source_length: 640
+        max_target_length: 128
+        iterable_dataset: false
+        train_data_load_mode: epoch_round
+        block_size: 500
+      finetune_params:
+        log_interval: 20
+        train_iters: 5000
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 1000
+        split: "1"
+      eval_params:
+        eval_iters: 200
+        eval_interval: 1000
+        eval_batch_size: 1
+        top_k: 10
+        top_p: 0.4
+        temperature: 0.8
+    
+    TDIUC:
+      data:
+        train_data: processed/TDIUC/train###train
+        test_data: processed/TDIUC/val###test
+      need_finetune: true
+      need_evaluate: true
+      data_params:
+        max_source_length: 640
+        max_target_length: 128
+        iterable_dataset: false
+        train_data_load_mode: epoch_round
+        block_size: 500
+      finetune_params:
+        log_interval: 20
+        train_iters: 5000
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 1000
+        split: "1"
+      eval_params:
+        eval_interval: 0
+        eval_batch_size: 1
+        top_k: 10
+        top_p: 0.4
+        temperature: 0.8
+    
+    TextVQA:
+      data:
+        train_data: processed/TextVQA/train###train
+        test_data: processed/TextVQA/val###test
+      need_finetune: true
+      need_evaluate: true
+      data_params:
+        max_source_length: 640
+        max_target_length: 128
+        iterable_dataset: false
+        train_data_load_mode: epoch_round
+        block_size: 500
+      finetune_params:
+        log_interval: 20
+        train_iters: 2000
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 500
+        split: "1"
+      eval_params:
+        eval_interval: 0
+        eval_batch_size: 1
+        top_k: 10
+        top_p: 0.4
+        temperature: 0.8
+      
+    GQA:
+      data:
+        train_data: processed/GQA/train###train
+        valid_data: processed/GQA/val###val
+        test_data: processed/GQA/test###test
+      need_finetune: true
+      need_evaluate: true
+      data_params:
+        max_source_length: 640
+        max_target_length: 128
+        iterable_dataset: false
+        train_data_load_mode: epoch_round
+        block_size: 500
+      finetune_params:
+        log_interval: 20
+        train_iters: 10000
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 1000
+        split: "1"
+      eval_params:
+        eval_iters: 200
+        eval_interval: 1000
+        eval_batch_size: 1
+        top_k: 10
+        top_p: 0.4
+        temperature: 0.8
+    
+    NoCaps:
+      data:
+        test_data: processed/NoCaps/val###test
+      need_finetune: false
+      need_evaluate: true
+      data_params:
+        max_source_length: 640
+        max_target_length: 128
+        iterable_dataset: false
+        train_data_load_mode: epoch_round
+        block_size: 1000
+        no_prompt: true
+      finetune_params:
+        log_interval: 20
+        train_iters: 2000
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 500
+        split: "1"
+      eval_params:
+        eval_interval: 0
+        eval_batch_size: 1
+        top_k: 1
+        top_p: 0.4
+        temperature: 0.8
+    
+    VQAv2:
+      data:
+        test_data: processed/VQAV2/val###test
+      need_finetune: false
+      need_evaluate: true
+      data_params:
+        max_source_length: 640
+        max_target_length: 128
+        iterable_dataset: false
+        train_data_load_mode: epoch_round
+        block_size: 500
+        no_prompt: true
+      finetune_params:
+        log_interval: 20
+        train_iters: 2000
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 500
+        split: "1"
+      eval_params:
+        eval_interval: 0
+        eval_batch_size: 1
+        top_k: 1
+        top_p: 0.4
+        temperature: 0.8
+    
+  level_2:
+    OKVQA:
+      data:
+        train_data: processed/OK-VQA/train###train
+        test_data: processed/OK-VQA/val###test
+      need_finetune: false
+      need_evaluate: true
+      data_params:
+        max_source_length: 640
+        max_target_length: 128
+        iterable_dataset: false
+        train_data_load_mode: epoch_round
+        block_size: 500
+        no_prompt: true
+      finetune_params:
+        log_interval: 20
+        train_iters: 2000
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 500
+        split: "1"
+      eval_params:
+        eval_interval: 0
+        eval_batch_size: 1
+        top_k: 1
+        top_p: 0.4
+        temperature: 0.8
 
-  RefCOCO:
-    anns_paths: /nxchinamobile2/shared/instruction_data/evaluation/refcoco_sampled.jsonl
-    img_dir: /nxchinamobile2/shared/img_datasets/MSCOCO/MSCOCO2014/train2014
-    eval: true
-    metrics: [grounding]
-    n_samples: 500
-    seed: 9271
-
-  RefCOCOp:
-    anns_paths: /nxchinamobile2/shared/instruction_data/evaluation/refcoco+_sampled.jsonl
-    img_dir: /nxchinamobile2/shared/img_datasets/MSCOCO/MSCOCO2014/train2014
-    eval: true
-    metrics: [grounding]
-    n_samples: 500
-    seed: 9271
-
-  RefCOCOg:
-    anns_paths: /nxchinamobile2/shared/instruction_data/evaluation/refcocog_sampled.jsonl
-    img_dir: /nxchinamobile2/shared/img_datasets/MSCOCO/MSCOCO2014/train2014
-    eval: true
-    metrics: [grounding]
-    n_samples: 500
-    seed: 9271
-
-  TDIUC:
-    anns_paths: /nxchinamobile2/shared/instruction_data/evaluation/tdiuc_sampled.jsonl
-    img_dir: /nxchinamobile2/shared/img_datasets/MSCOCO/MSCOCO2014/val2014
-    eval: true
-    metrics: [vqa_acc]
-    n_samples: 500
-    seed: 71
-
-  ScienceQA:
-    anns_paths: /nxchinamobile2/shared/instruction_data/ScienceQA/data/scienceqa/problems.json
-    img_dir: /nxchinamobile2/shared/instruction_data/ScienceQA/test
-    eval: True
-    metrics: [acc]
-  
-  OCRVQA:
-    anns_paths: /nxchinamobile2/shared/instruction_data/MultiInstruct/raw/OCR-VQA/dataset.json
-    img_dir: /nxchinamobile2/shared/instruction_data/MultiInstruct/raw/OCR-VQA/amazon_images_folder
-    metrics: [acc]
-    eval: True
-
-  HalVQA:
-    anns_paths: /nxchinamobile2/shared/instruction_data/MultiInstruct/raw/hal_val_sample/data_test.jsonl
-    img_dir: /nxchinamobile2/shared/instruction_data/MultiInstruct/raw/hal_val_sample/images
-    metrics: [acc]
-    eval: True
-
-  # visual7w:
-  #   anns_paths: [path/to/annotations]
-  #   img_dir: path/to/images
-  #   metrics: [vqa_acc, gpt3.5]
-  #   eval: True
-
-# level_2:
-
-#   ok_vqa:
-#     anns_paths: [path/to/annotations]
-#     img_dir: path/to/images
-#     metrics: [vqa_acc, gpt3.5]
-#     eval: True
-
-# level_3:
+  level_3:
+    HalVQA:
+      data:
+        train_data: processed/HalVQA/train###train
+        test_data: processed/HalVQA/test###test
+      need_finetune: true
+      need_evaluate: true
+      data_params:
+        max_source_length: 640
+        max_target_length: 128
+        iterable_dataset: false
+        train_data_load_mode: epoch_round
+        block_size: 500
+      finetune_params:
+        log_interval: 20
+        train_iters: 2000
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 500
+        split: "1"
+      eval_params:
+        eval_interval: 0
+        block_size: 500
+        eval_batch_size: 1
+        top_k: 10
+        top_p: 0.4
+        temperature: 0.8
+      

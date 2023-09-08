@@ -1,13 +1,11 @@
 __author__ = 'tylin'
-from .tokenizer.ptbtokenizer import PTBTokenizer
-from .bleu.bleu import Bleu
-from .meteor.meteor import Meteor
-from .rouge.rouge import Rouge
-from .cider.cider import Cider
-from .spice.spice import Spice
-from typing import Any
+from mmbench.metrics.pycocoevalcap.tokenizer.ptbtokenizer import PTBTokenizer
+from mmbench.metrics.pycocoevalcap.bleu.bleu import Bleu
+from mmbench.metrics.pycocoevalcap.meteor.meteor import Meteor
+from mmbench.metrics.pycocoevalcap.rouge.rouge import Rouge
+from mmbench.metrics.pycocoevalcap.cider.cider import Cider
+from mmbench.metrics.pycocoevalcap.spice.spice import Spice
 from typing import List, Dict
-import collections
 from mmbench.common.example import Example
 from mmbench.common.registry import Registry
 from mmbench.metrics.base_metric import BaseMetric
@@ -23,7 +21,7 @@ class CaptionMetric(BaseMetric):
 
 
     @classmethod
-    def calc_scores(self, res_examples: List[Example], gt_examples: List[Example]) -> Dict:
+    def calc_scores(self, pred_res: dict, gt_res: dict) -> Dict:
         """ Use official VQA evaluation script to report metrics.
           Args:
             @res_examples: a list of result examples instanced by `Example` class.
@@ -31,22 +29,13 @@ class CaptionMetric(BaseMetric):
           Return:
             the calculated metric scores.
         """
-        scores = {}
-
-        gts = collections.defaultdict(list)
-        res = collections.defaultdict(list)
-        for ex in gt_examples:
-            gts[ex.idx].append(ex.answers)
-        for ex in res_examples:
-            res[ex.idx].append(ex.answers)
-
         # =================================================
         # Set up scorers
         # =================================================
         print('caption tokenization...')
         tokenizer = PTBTokenizer()
-        gts  = tokenizer.tokenize(gts)
-        res = tokenizer.tokenize(res)
+        gts  = tokenizer.tokenize(gt_res)
+        res = tokenizer.tokenize(pred_res)
 
         # =================================================
         # Set up scorers
@@ -76,6 +65,7 @@ class CaptionMetric(BaseMetric):
                 self.setImgToEvalImgs(scores, gts.keys(), method)
                 print("%s: %0.3f"%(method, score))
         self.setEvalImgs()
+        return self.eval
 
     def setEval(self, score, method):
         self.eval[method] = score

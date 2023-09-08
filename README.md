@@ -39,20 +39,6 @@ This benchmark evaluate the MLLMs's abilities from 3 levels:
         - attribute hallucination
     + Interactions in Embodied Environment
 
-### Input/Output Format
-Each example in our benchmark is conformed with a unified format:
-
-```python
-{
-    'task': # the task name
-    'idx': # the example index
-    'instruction': # task instruction
-    'img_path': # the vision path
-    'context': # the optinal context for input
-    'question': # the input question
-    'answers':  # the list of language answers
-}
-```
 
 ## Code
 
@@ -61,66 +47,81 @@ For the sake of readability, some details have been omitted.
 ```python
 .
 ├── README.md
-├── data
+├── data                    # data processor, raw data -> processed data
 └── mmbench
     ├── common
     │   ├── example.py
-    │   ├── registry.py
-    │   └── utils.py
-    ├── metrics
+    │   ├── training.py     # main training, ref sat
+    │   ├── inference.py    # main testing, ref sat
+    │   ├── model.py        # model interface
+    │   ├── registry.py     # registry
+    │   └── utils.py        # common functions
+    ├── metrics             # all metrics
     │   ├── bleu
     │   └── rouge
+    │   └── acc
     │   └── vqa_acc
-    └── tasks
-    │   ├── base_task.py
+    └── tasks               # all tasks
+    │   ├── base_task.py    # main task, including most of functions in evaluating
     │   ├── level_1
     │   │   ├── VQAv2
-    │   │   │   ├── download.sh
-    │   │   │   ├── vqav2_card.md
-    │   │   │   └── vqav2_task.py
     │   │   └── Visual7W
+    │   │   └── ...
     │   ├── level_2
     │   │   └── OK-VQA
     │   └── level_3
-    │       └── kosmos-iq50
+    │       └── HalVQA
     ├── __init__.py
-    ├── config.yaml                   # configure data paths, metrics, evaluation tasks
-    └── evaluator.py
-
+    ├── config.yaml         # configure data paths, params, and other
+    └── evaluator.py        # main entry
 ```
 
 ## Usage
-
-We provide two types of usages for flexibility.
 
 ### Install
 
 Install this repo from source.
 
-### Incorporating the evaluation in your code
-
-```Python
-from mmbench.common.example import Example
-from mmbench.evaluation import Evaluator
-
-model = YourModel # your model
-evaluator = Evaluator()
-predictions = []
-for ex in evaluator.get_mixed_dataloader():
-    ans = model(ex.img_path, ex.context, ex.question)
-    predictions.append(Example(task=ex.task, idx=ex.idx, answers=[ans]))
-scores = evaluator.evaluate_examples(predictions)
-print(scores)
+```
+git clone git@github.com:qijimrc/mm_evaluation.git
+cd mm_evaluation & python3 setup.py install
 ```
 
-### Performing the evaluation on saved results
+### Example
 
 ```Python
-python mmbench.evaluator --result_file 'Path/To/YourResult.json'
+import argsparse
+from mmbench.evaluator import Evaluator
+from mmbench.common.model import ModelInterface
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--eval_tasks', type=str, nargs='+', help='Specify the tasks for evaluation')
+parser.add_argument("--custom_cfg_path", type=str, help="customized eval config path")
+args = parser.parse_args()
+
+# build your ModelInterface
+mt = ModelInterface(args, model, ...)
+# Evaluate
+evaluator = Evaluator(custom_cfg_path=args.custom_cfg_path, custom_functions={})
+scores = evaluator.evaluate(args, mt, eval_tasks=args.eval_tasks)
 ```
 
+### Features
 
-### Leaderboard
+1. customized params
+
+Create a customized `yaml` config referring tasks in the `mmbench/config.yaml`. Then add the custom_cfg_path in the `args` when you build the `Evaluator`.
+
+2. customized functions
+
+You can customized the following functions in the `mmbench/tasks/base_task.py`
+
+- preprocess_datab_eval
+- collate_fn
+- forward_step
+- forward_step_eval
+
+## Leaderboard
 
 
 | **Model**                        | **level_1** |           |          |  **level_2**|           |          | **level_3** |           |          |  **AVG**      |
