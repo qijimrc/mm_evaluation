@@ -1,13 +1,11 @@
 __author__ = 'tylin'
-from .tokenizer.ptbtokenizer import PTBTokenizer
-from .bleu.bleu import Bleu
-from .meteor.meteor import Meteor
-from .rouge.rouge import Rouge
-from .cider.cider import Cider
-from .spice.spice import Spice
-from typing import Any
+from mmbench.metrics.pycocoevalcap.tokenizer.ptbtokenizer import PTBTokenizer
+from mmbench.metrics.pycocoevalcap.bleu.bleu import Bleu
+from mmbench.metrics.pycocoevalcap.meteor.meteor import Meteor
+from mmbench.metrics.pycocoevalcap.rouge.rouge import Rouge
+from mmbench.metrics.pycocoevalcap.cider.cider import Cider
+from mmbench.metrics.pycocoevalcap.spice.spice import Spice
 from typing import List, Dict
-import collections
 from mmbench.common.example import Example
 from mmbench.common.registry import Registry
 from mmbench.metrics.base_metric import BaseMetric
