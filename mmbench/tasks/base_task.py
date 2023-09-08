@@ -211,8 +211,13 @@ class BaseTask(object):
         return loss, {}
 
     @custom_func
-    def preprocess_datab_eval(self, context_len, data_b):
-        return data_b
+    def preprocess_datab_eval(self, data_b):
+        if isinstance(data_b["context_length"], int):
+            context_len = data_b["context_length"]
+        else:
+            context_len = int(data_b['context_length'][0])
+        tokens = data_b['input_ids'][:, :context_len]
+        return data_b, tokens, context_len
     
     def chat(self, tokens, mt, args, **kwargs):
         if self.custom_functions.get("chat", None):
@@ -244,12 +249,8 @@ class BaseTask(object):
         if data_b is None:
             return torch.tensor(0, device=args.device), {}
         timers('batch generator').stop()
-
-        context_len = int(data_b['context_length'][0])
-        tokens = data_b['input_ids'][:, :context_len]
-        data_b = self.preprocess_datab_eval(context_len, data_b)
+        data_b, tokens, context_len = self.preprocess_datab_eval(data_b)
         question_id = data_b.pop('question_id')[0]
-
         model.add_mixin('auto-regressive', CachedAutoregressiveMixin())
         outputs = self.chat(tokens, mt, args, **data_b)[0][context_len:]
         model.del_mixin('auto-regressive')
