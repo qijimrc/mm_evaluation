@@ -15,6 +15,7 @@ class ScienceQA(BaseTask):
     def calc_scores(self, args, results_df) -> Dict:
         metrics_scores = {}
         metric_cls = Registry.get_metric_class('acc')
+        results_df["answer"] = results_df["answer"].apply(lambda x: chr(ord('A') + int(x)))
         metrics_scores["Avg"] = metric_cls.calc_scores(results_df["answer"], results_df["preds"])
         for ttype in self.ttypes: 
             c_df = results_df[results_df["ttype"] == ttype].drop_duplicates(subset=["question_id"])

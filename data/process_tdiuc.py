@@ -46,7 +46,7 @@ def process_data(root_dir, mode):
             continue
         c_data = {
             "datatype": "normal_qa",
-            "quesion_id": qa_info["question_id"],
+            "question_id": qa_info["question_id"],
             "metadata": {
                 "question": qa_info["question"],
                 "answer": answer,

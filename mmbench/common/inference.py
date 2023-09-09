@@ -25,7 +25,7 @@ from sat import mpu
 from sat.training.model_io import load_checkpoint
 from sat.training.utils import Timers
 from sat.data_utils import make_loaders
-from sat.helpers import print_rank0
+from sat.helpers import print_rank0, print_all
 
 def testing_main(args,
                  model,
@@ -104,8 +104,8 @@ def evaluate(data_iterator, model, eval_iters, args, timers, split, verbose=Fals
                     metrics_total[name] = []
                 byte_value = value.encode('utf-8')
                 byte_tensor = torch.tensor(bytearray(byte_value), dtype=torch.uint8, device=lm_loss.device)
-                byte_list = [torch.empty_like(byte_tensor, device=lm_loss.device) for _ in range(args.world_size)]
-                torch.distributed.all_gather(byte_list, byte_tensor)
+                # Gathers tensor arrays of different lengths across multiple gpus
+                byte_list = all_gather(byte_tensor, args.world_size)
                 
                 if rank == 0:
                     gathered_len = len(byte_list) if not is_last else len(byte_list) - drop_number * args.model_parallel_size
@@ -113,14 +113,16 @@ def evaluate(data_iterator, model, eval_iters, args, timers, split, verbose=Fals
                         decode_bytes = np.array(byte_list[i].cpu()).tobytes()
                         try:
                             decode_value = decode_bytes.decode('utf-8')
-                        except Exception as e:
+                        except Exception as e1:
                             try:
                                 decode_value = decode_bytes.decode('ISO-8859-1')
-                            except Exception as e:
+                            except Exception as e2:
                                 decode_value = "<DecodeError>"
                                 print_rank0(f'decode failed, the output is replaced by {decode_value}.')
                         metrics_total[name].append(decode_value)
-                
+
+    if split == "val":
+        model.train()
     # Move model back to the train mode.
     total_lm_loss /= eval_iters
     # metrics_avg = {key: value / eval_iters for key, value in metrics_total.items()}
@@ -150,3 +152,22 @@ def report_evaluate_metrics(summary_writer, prefix, loss, ppl, step, avg_metrics
         for key in avg_metrics:
             summary_writer.add_scalar('Train/valid_'+key, avg_metrics[key], step)
         
+def all_gather(tensor, world_size):
+    """Gathers tensor arrays of different lengths across multiple gpus
+    """
+    # gather all tensor size
+    local_size = torch.tensor(tensor.size(), device=tensor.device)
+    all_sizes = [torch.zeros_like(local_size) for _ in range(world_size)]
+    torch.distributed.all_gather(all_sizes, local_size)
+    max_size = max(all_sizes)
+    # padding
+    size_diff = max_size.item() - local_size.item()
+    if size_diff:
+        tensor = torch.cat([tensor, torch.zeros(size_diff, device=tensor.device, dtype=tensor.dtype)])
+    all_tensor_padded = [torch.zeros_like(tensor) for _ in range(world_size)]
+    torch.distributed.all_gather(all_tensor_padded, tensor)
+    # un-padding
+    ret = []
+    for q, size in zip(all_tensor_padded, all_sizes):
+        ret.append(q[:size])
+    return ret

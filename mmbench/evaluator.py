@@ -7,6 +7,7 @@
 import os
 import sys
 import copy
+import torch
 import logging
 import argparse
 import jsonlines
@@ -14,6 +15,7 @@ import jsonlines
 if os.path.dirname(os.path.dirname(__file__)) not in sys.path:
   sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
+from sat import mpu
 from sat.helpers import print_rank0
 from omegaconf import OmegaConf
 
@@ -37,7 +39,7 @@ class Evaluator:
         self.default_cfg = OmegaConf.load(cfg_path)
         if custom_cfg_path:
             self._update_params(OmegaConf.load(custom_cfg_path))
-        check_config(copy.deepcopy(self.default_cfg))
+        # check_config(copy.deepcopy(self.default_cfg))
         
         server_addr = server_addr or self.default_cfg["server_addr"]
         self.mmeval_home = os.environ.get("MMEVAL_HOME", os.path.join(os.path.expanduser('~'), ".mmbench_eval_tmp"))
@@ -72,6 +74,7 @@ class Evaluator:
         args.data_home_dir = self.data_home_dir
         args.save = args.save if hasattr(args, 'save') and args.save else self.mmeval_home
         args.save_result_path = os.path.join(args.save, f'{args.experiment_name}-{timestring}.jsonl')
+        rank = torch.distributed.get_rank(group=mpu.get_data_parallel_group())
         failed_tasks = []
         for i, task_name in enumerate(eval_tasks):
             try:
@@ -91,9 +94,10 @@ class Evaluator:
                     mt.freezen_model()
                     all_scores[task_name] = c_task.do_evaluate(args_cp, mt)
                     # save
-                    with jsonlines.open(args.save_result_path, mode='a') as fp:
-                        _tmp = {"task": task_name, "results": all_scores[task_name]}
-                        fp.write(_tmp)
+                    if rank == 0:
+                        with jsonlines.open(args.save_result_path, mode='a') as fp:
+                            _tmp = {"task": task_name, "results": all_scores[task_name]}
+                            fp.write(_tmp)
                 print_rank0('-'*80)
                 print_rank0(f'{task_name} results: {all_scores[task_name]}')
                 print_rank0('-'*80)

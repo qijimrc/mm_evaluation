@@ -75,7 +75,7 @@ class ItemDataset(Dataset, BaseDataset):
             print_rank0(f"Process text failed. Please check the max_target_length & max_source_length.\n The data is {dialogues['metadata']}", level=logging.WARNING)
             return {}
         # other attr
-        ret = {**img_dict, **text_dict, "question_id": dialogues["question_id"]}
+        ret = {**img_dict, **text_dict, "question_id": str(dialogues["question_id"])}
         for attr in self.other_attr:
             if attr in dialogues:
                 ret[attr] = dialogues[attr]
