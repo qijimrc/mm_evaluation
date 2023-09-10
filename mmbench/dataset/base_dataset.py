@@ -24,7 +24,7 @@ class BaseDataset(object):
             img_dict.update({'cross': self.mt.cross_image_processor(img)})
         return img_dict
     
-    def process_text(self, prompt, answer):
+    def process_text(self, answer, prompt):
         return self.mt.text_processor(answer, prompt)
     
     def normal_qa(self, metadata):

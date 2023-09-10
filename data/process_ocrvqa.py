@@ -27,7 +27,7 @@ def process_data(root_dir, save_dir, img_dir, mode):
             for question, answer in zip(value["questions"], value["answers"]):
                 c_data = {
                     "datatype": "normal_qa",
-                    "quesion_id": "%06d" %item_num,
+                    "question_id": "%06d" %item_num,
                     "metadata": {
                         "question": question,
                         "answer": answer,

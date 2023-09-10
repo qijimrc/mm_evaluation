@@ -63,14 +63,15 @@ def process_data(root_dir, mode):
             drop_num += 1
             print(f'not found {img_path}.')
             continue
-        answer = select_answer_by_confidence(qa_info["answers"])
+        # answer = select_answer_by_confidence(qa_info["answers"])
+        answer = qa_info["multiple_choice_answer"]
         if answer is None:
             drop_num += 1
             print(f'no confidenced answer!')
             continue
         c_data = {
             "datatype": "normal_qa",
-            "quesion_id": "%06d" %item_num,
+            "question_id": "%06d" %item_num,
             "metadata": {
                 "question": qa_info["question"],
                 "answer": answer,
@@ -89,6 +90,6 @@ def process_data(root_dir, mode):
     
 if __name__ == '__main__':
     root_dir = "/nxchinamobile2/shared/mmbench_datasets"
-    for mode in ["val"]:
+    for mode in ["test"]:
         print(f"process {mode}.")
         process_data(root_dir, mode)

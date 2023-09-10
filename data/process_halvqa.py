@@ -23,16 +23,21 @@ def process_data(root_dir, save_dir, img_dir, mode):
                 drop_num += 1
                 continue
             eval_type = eval_type_dict[data["eval_type"]] if data["eval_type"] in eval_type_dict.keys() else data["eval_type"]
-            json_data = {
-                "datatype": "multichoice",
-                "question_id": "%06d" %item_num,
-                "metadata": {
-                    "question": data["question"],
-                    "choices": data["choices"],
-                    "answer": data["answer"],
-                    "type": eval_type,
+            try:
+                json_data = {
+                    "datatype": "multichoice",
+                    "question_id": "%06d" %item_num,
+                    "metadata": {
+                        "question": data["question"],
+                        "choices": data["choices"],
+                        "answer": data["choices"].index(data["answer"]),
+                        "type": eval_type,
+                    }
                 }
-            }
+            except Exception as e:
+                print(e)
+                drop_num += 1
+                continue
             if image_path not in all_data:
                 all_data[image_path] = []
             all_data[image_path].append(json_data)
