@@ -15,9 +15,10 @@
 # limitations under the License.
 
 import math
-import numpy as np
 import torch
+import logging
 import deepspeed
+import numpy as np
 import webdataset as wds
 from torch.utils.data import DataLoader
 
@@ -118,7 +119,7 @@ def evaluate(data_iterator, model, eval_iters, args, timers, split, verbose=Fals
                                 decode_value = decode_bytes.decode('ISO-8859-1')
                             except Exception as e2:
                                 decode_value = "<DecodeError>"
-                                print_rank0(f'decode failed, the output is replaced by {decode_value}.')
+                                print_rank0(f'decode failed, the output is replaced by {decode_value}.', level=logging.ERROR)
                         metrics_total[name].append(decode_value)
 
     if split == "val":

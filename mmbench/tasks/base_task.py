@@ -83,10 +83,15 @@ class BaseTask(object):
     def handle_metrics(self, args, results_total):
         question_ids, preds = results_total["question_ids"], results_total["preds"]
         res_df = pd.DataFrame({"question_id": question_ids, "preds": preds}, dtype=str)
+        before_res_len = len(res_df)
         # remove duplicates
         res_df = res_df.drop_duplicates(subset=["question_id"])
+        if before_res_len != len(res_df):
+            print_rank0(f"Sample nums change after removing duplicates: {before_res_len} -> {len(res_df)}", level=logging.WARNING)
         # get mirror data
         mirror_df = self.fetch_dataset_mirror(args)
+        if len(res_df) != len(mirror_df):
+            print_rank0(f"Sample nums not same: {len(res_df)} != {len(mirror_df)}", level=logging.WARNING)
         res_df = res_df.merge(mirror_df, on="question_id", how="inner")
         return self.calc_scores(args, res_df)
 
