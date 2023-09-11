@@ -13,6 +13,6 @@ class GQATask(BaseTask):
     def calc_scores(self, args, result_df) -> Dict:
         metrics_scores = {}
         metric_cls = Registry.get_metric_class('acc')
-        metrics_scores["Total"] = metric_cls.calc_scores(result_df["txt"], result_df["preds"])
+        metrics_scores["Total"] = metric_cls.calc_scores(result_df["answer"], result_df["preds"])
         return metrics_scores
         
