@@ -11,7 +11,7 @@ from utils import get_image_bytes, save_data
 
 DATASET_NAWE = "GQA"
 
-def process_data(filename_list, save_dir, root_dir, img_dir):
+def process_data(filename_list, save_dir, root_dir, img_dir, mode):
     # 汇总数据
     im2data = {}
     drop_num = 0
@@ -52,7 +52,7 @@ def process_data(filename_list, save_dir, root_dir, img_dir):
 if __name__ == "__main__":
     root_dir = "/nxchinamobile2/shared/mmbench_datasets"
     img_dir = "raw/GQA/images"
-    for mode in ["train", "val", "test"]:
+    for mode in ["testdev_balanced"]:
         print(f'process {mode}')
         save_dir = os.path.join(root_dir, f"processed/{DATASET_NAWE}/{mode}")
         if not os.path.exists(save_dir):
@@ -63,5 +63,5 @@ if __name__ == "__main__":
         elif mode == "val":
             file_list = [os.path.join(root_dir, f"raw/GQA/val_all_questions.json")]
         else:
-            file_list = [os.path.join(root_dir, f"raw/GQA/testdev_all_questions.json")]
-        process_data(file_list, save_dir, root_dir, img_dir)
+            file_list = [os.path.join(root_dir, f"raw/GQA/{mode}_questions.json")]
+        process_data(file_list, save_dir, root_dir, img_dir, mode)
