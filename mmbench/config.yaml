@@ -5,6 +5,8 @@ server_addr: ningxia
 home_env:
   ningxia:
     data_home: /nxchinamobile2/shared/mmbench_datasets
+  wulan:
+    data_home: /mnt/shared/img_datasets/mmbench_datasets
 
 tasks:
   level_1:
