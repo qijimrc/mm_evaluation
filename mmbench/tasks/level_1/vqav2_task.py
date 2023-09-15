@@ -14,10 +14,8 @@ class VQAv2Task(BaseTask):
         super().__init__(task_cfg, **kw_args)
 
     def calc_scores(self, args, results_df) -> Dict:
-        metrics_scores = {}
         metric_cls = Registry.get_metric_class('vqa_acc')
         pred_qas = [{"question_id": r['question_id'], "answer": r["preds"]} for i, r in results_df.iterrows()]
         gt_qas = [{"question_id": r['question_id'], "answers": r["answer_list"], "question_type": r["question_type"]} for i, r in results_df.iterrows()]
-        metrics_scores["VQA_Acc"] = metric_cls.calc_scores(pred_qas, gt_qas)
-        return metrics_scores
+        return metric_cls.calc_scores(pred_qas, gt_qas)
         

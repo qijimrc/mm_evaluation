@@ -1,9 +1,3 @@
-'''
-@File    :   base_task.py
-@Time    :   2023/09
-@Author  :   Wenmeng Yu
-@Contact :   iyuge2@qq.com
-'''
 import os
 import sys
 import copy

@@ -28,6 +28,8 @@ from sat.training.utils import Timers
 from sat.data_utils import make_loaders
 from sat.helpers import print_rank0, print_all
 
+from .global_vars import *
+
 def testing_main(args,
                  model,
                  create_dataset_function,
@@ -101,8 +103,11 @@ def evaluate(data_iterator, model, eval_iters, args, timers, split, verbose=Fals
             total_lm_loss += lm_loss.data.detach().float().item()
             is_last = True if iteration == eval_iters and args.strict_eval and len(last_shape)>0 else False
             for name, value in metrics.items():
+                # print_all(f"{name}: {value}")
                 if name not in metrics_total:
                     metrics_total[name] = []
+                if len(value) == 0:
+                    value = PAD_STR
                 byte_value = value.encode('utf-8')
                 byte_tensor = torch.tensor(bytearray(byte_value), dtype=torch.uint8, device=lm_loss.device)
                 # Gathers tensor arrays of different lengths across multiple gpus
@@ -118,7 +123,7 @@ def evaluate(data_iterator, model, eval_iters, args, timers, split, verbose=Fals
                             try:
                                 decode_value = decode_bytes.decode('ISO-8859-1')
                             except Exception as e2:
-                                decode_value = "<DecodeError>"
+                                decode_value = DECODE_ERROR_STR
                                 print_rank0(f'decode failed, the output is replaced by {decode_value}.', level=logging.ERROR)
                         metrics_total[name].append(decode_value)
 
