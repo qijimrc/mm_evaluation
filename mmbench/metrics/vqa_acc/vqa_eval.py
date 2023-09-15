@@ -16,16 +16,21 @@ import re
 
 
 class VQAEval:
-    def __init__(self, vqa=None, vqaRes=None, n=2):
+    def __init__(self, pred_qas=None, gt_qas=None, n=2):
+        """Constructor of VQA evaluator class for calculating the vqa accuracy.
+        Params:
+          @pred_qas: a list of dict where each contains required keys of `question_id` and `answer`.
+          @gt_qas: a list of dict where each contains required keys of `question_id`,  'answers' and  optional keys of `question`, `question_type` and 'answer_type'.
+        """
         self.n = n
         self.accuracy = {}
         self.evalQA = {}
         self.evalQuesType = {}
         self.evalAnsType = {}
-        self.vqa = vqa
-        self.vqaRes = vqaRes
-        if vqa is not None:
-            self.params = {"question_id": vqa.getQuesIds()}
+        self.vqa = {ex['question_id']: ex for ex in gt_qas}
+        self.vqaRes = {ex['question_id']: ex for ex in pred_qas}
+        if gt_qas is not None:
+            self.params = {"question_id": [ex['question_id'] for ex in gt_qas]}
         self.contractions = {
             "aint": "ain't",
             "arent": "aren't",
@@ -196,8 +201,8 @@ class VQAEval:
         gts = {}
         res = {}
         for quesId in quesIds:
-            gts[quesId] = self.vqa.qa[quesId]
-            res[quesId] = self.vqaRes.qa[quesId]
+            gts[quesId] = self.vqa[quesId]
+            res[quesId] = self.vqaRes[quesId]
 
         # =================================================
         # Compute accuracy
@@ -226,8 +231,10 @@ class VQAEval:
                 matchingAns = [item for item in otherGTAns if item["answer"] == resAns]
                 acc = min(1, float(len(matchingAns)) / 3)
                 gtAcc.append(acc)
-            quesType = gts[quesId]["question_type"]
-            ansType = gts[quesId]["answer_type"]
+            # quesType = gts[quesId]["question_type"]
+            # ansType = gts[quesId]["answer_type"]
+            quesType = gts[quesId].get('question_type', 'default')
+            ansType = gts[quesId].get('answer_type', 'default')
             avgGTAcc = float(sum(gtAcc)) / len(gtAcc)
             accQA.append(avgGTAcc)
             if quesType not in accQuesType:
