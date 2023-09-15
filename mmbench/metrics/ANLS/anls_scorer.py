@@ -146,4 +146,4 @@ class ANLSScorer(BaseMetric):
                 'per_sample_result':perSampleMetrics
                 }
 
-        return resDict;
+        return resDict

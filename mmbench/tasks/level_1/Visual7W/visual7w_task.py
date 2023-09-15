@@ -5,7 +5,7 @@ from mmbench.common.registry import Registry
 from mmbench.tasks.base_task import BaseTask
 
 @Registry.register_task('Visual7W')
-class Visual7W(BaseTask):
+class Visual7WTask(BaseTask):
     def __init__(self, task_cfg, custom_functions, **kw_args):
         self.task_name = 'Visual7W'
         super().__init__(task_cfg, custom_functions, **kw_args)

@@ -5,7 +5,7 @@ from mmbench.common.registry import Registry
 from mmbench.tasks.base_task import BaseTask
 
 @Registry.register_task('ScienceQA')
-class ScienceQA(BaseTask):
+class ScienceQATask(BaseTask):
     def __init__(self, task_cfg, custom_functions, **kw_args):
         self.task_name = 'ScienceQA'
         self.ttypes = ["NO", "IMG", "TXT"]

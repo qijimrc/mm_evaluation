@@ -8,31 +8,26 @@ from collections import Counter
 
 from utils import get_image_bytes, save_data
 
-DATASET_NAWE = "TextVQA"
+DATASET_NAWE = "TallyQA"
 
 def process_data(root_dir, mode):
-    if mode == "test":
-        img_dir = os.path.join(root_dir, "raw/TextVQA/test/test_images")
-        filename = os.path.join(root_dir, f"raw/TextVQA/test/TextVQA_0.5.1_test.json")
-    else:
-        img_dir = os.path.join(root_dir, "raw/TextVQA/train_val/train_images")
-        filename = os.path.join(root_dir, f"raw/TextVQA/train_val/TextVQA_0.5.1_{mode}.json")
-    save_dir = os.path.join(root_dir, f"processed/TextVQA/{mode}")
+    filename = os.path.join(root_dir, f"TallyQA/{mode}.json")
+    img_dir_vg = "/nxchinamobile2/shared/img_datasets/VG_100K_images"
+    img_dir_coco = '/nxchinamobile2/shared/img_datasets/MSCOCO/MSCOCO2014'
+    save_dir = os.path.join(root_dir, f"processed/TallyQA/{mode}")
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     with open(filename, "r", encoding="utf-8") as fp:
-        data = json.load(fp)['data']
+        data = json.load(fp)
     all_results = {}
     drop_num, item_num = 0, 0
     for c_data in tqdm.tqdm(data):
-        if mode == "test":
-            answer = ""
-            answer_list = []
+        if 'VG' in c_data['image']:
+            img_dir = img_dir_vg
         else:
-            counts = Counter(c_data["answers"])
-            answer = sorted(counts.items(), key=lambda x: x[1], reverse=True)[0][0]
-            answer_list = c_data["answers"]
-        image_path = os.path.join(img_dir, c_data["image_id"] + ".jpg")
+            img_dir = img_dir_coco
+
+        image_path = os.path.join(img_dir, c_data["image"])
         if not os.path.exists(os.path.join(root_dir, image_path)):
             print(f"not found: {image_path}")
             drop_num += 1
@@ -42,9 +37,8 @@ def process_data(root_dir, mode):
             "datatype": "normal_qa",
             "question_id": c_data["question_id"],
             "metadata": {
-                "question":c_data["question"],
-                "answer": answer,
-                "answer_list": answer_list
+                "question": c_data["question"],
+                "answer": c_data["answer"]
             }
         }
         all_results[image_path].append(c_data)
@@ -57,7 +51,6 @@ def process_data(root_dir, mode):
 
 if __name__ == "__main__":
     root_dir = "/nxchinamobile2/shared/mmbench_datasets"
-    # train, val, test
-    for mode in ['train', 'val', 'test']:
+    for mode in ['train', 'test']:
         print(f"process {mode}.")
         process_data(root_dir, mode)

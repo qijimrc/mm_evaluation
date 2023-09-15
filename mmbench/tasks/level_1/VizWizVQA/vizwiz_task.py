@@ -7,18 +7,15 @@ import json
 
 
 
-@Registry.register_task('VQAv2')
-class VQAv2Task(BaseTask):
+@Registry.register_task('VizWizVQA')
+class VizWizVQATask(BaseTask):
     def __init__(self, task_cfg, custom_functions, **kw_args):
-        self.task_name = 'VQAv2'
+        self.task_name = 'VizWizVQA'
         super().__init__(task_cfg, custom_functions, **kw_args)
 
     def calc_scores(self, args, results_df) -> Dict:
         metrics_scores = {}
         metric_cls = Registry.get_metric_class('vqa_acc')
-        metrics_scores["VQA_Acc: AVG"] = metric_cls.calc_scores(results_df)
-        for c_type in results_df["question_type"].unique().tolist():
-            c_df = results_df[results_df["question_type"] == c_type].drop_duplicates(subset=["question_id"])
-            metrics_scores[f"VQA_Acc: {c_type}"] = metric_cls.calc_scores(c_df)
+        metrics_scores["vqa_acc"] = metric_cls.calc_scores(results_df)
         return metrics_scores
         

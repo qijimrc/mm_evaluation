@@ -10,12 +10,12 @@ from utils import get_image_bytes, save_data
 DATASET_NAWE = "OKVQA"
 
 def select_answer_by_confidence(answers):
-    confidenced_answers = [answer["answer"] for answer in answers if answer["answer_confidence"] == "yes"]
-    if len(confidenced_answers) == 0:
-        return None
-    counts = Counter(confidenced_answers)
+    answer_list = [answer["answer"] for answer in answers]
+    if len(answer_list) == 0:
+        return None, None
+    counts = Counter(answer_list)
     counts = sorted(counts.items(), key=lambda x: x[1], reverse=True)
-    return counts[0][0]
+    return counts[0][0], answer_list
 
 def process_data(root_dir, save_dir, img_dir, mode):
     okvqa_questions_f = os.path.join(root_dir, f"raw/OK-VQA/{mode}/OpenEnded_mscoco_{mode}2014_questions.json")
@@ -25,6 +25,7 @@ def process_data(root_dir, save_dir, img_dir, mode):
     
     sorted_qs = sorted(questions['questions'], key=lambda x:x['question_id'])
     sorted_anns = sorted(anns['annotations'], key=lambda x:x['question_id'])
+    question_types = anns["question_types"]
 
     all_data, drop_num, item_num = {}, 0, 0
     for idx in tqdm.tqdm(range(len(sorted_qs))):
@@ -36,7 +37,7 @@ def process_data(root_dir, save_dir, img_dir, mode):
             drop_num += 1
             print(f'not found {img_path}.')
             continue
-        answer = select_answer_by_confidence(qa_info["answers"])
+        answer, answer_list = select_answer_by_confidence(qa_info["answers"])
         if answer is None:
             drop_num += 1
             print(f'no confidenced answer!')
@@ -47,7 +48,8 @@ def process_data(root_dir, save_dir, img_dir, mode):
             "metadata": {
                 "question": qa_info["question"],
                 "answer": answer,
-                "question_type": qa_info["question_type"]
+                "answer_list": answer_list,
+                "question_type": question_types[qa_info["question_type"]]
             }
         }
         if img_path not in all_data:

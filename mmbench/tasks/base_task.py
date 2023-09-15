@@ -6,6 +6,7 @@
 '''
 import os
 import copy
+import json
 import torch
 import logging
 import argparse
@@ -29,7 +30,11 @@ from mmbench.common.training import training_main
 from mmbench.dataset import ItemDataset, WdsDataset
 
 class BaseTask(object):
-    def __init__(self, task_cfg, custom_functions=dict(), **kwargs):
+    def __init__(self,
+                 task_cfg,
+                 custom_functions=dict(),
+                 custom_dataset_functions=dict(),
+                 **kwargs):
         self.task_cfg = task_cfg
         self.need_finetune = task_cfg.get('need_finetune', False)
         self.need_evaluate = task_cfg.get('need_evaluate', False)
@@ -38,6 +43,8 @@ class BaseTask(object):
         self.no_prompt = task_cfg["data_params"].get("no_prompt", False)
 
         self.custom_functions = custom_functions
+        self.custom_dataset_functions = custom_dataset_functions
+
         self.dataloader_mirror = {}
         self.dataset_mirror = {}
     
@@ -80,9 +87,25 @@ class BaseTask(object):
         print_rank0(f'fetch {self.mode} data mirror end.')
         return mirror_df
 
+    def handle_upload_data(self, args, res_df):
+        """convert test results to the format of eval website.
+
+        Args:
+            res_df (pd.DataFrame): two columns
+                question_id (str): quesiton id
+                preds (str): predict results
+        """
+        ret = [{"question_id": row["question_id"], "answer": row["preds"]} for idx, row in res_df.iterrows()]
+        with open(args.save_details_result_path + ".json", "w") as fp:
+            json.dump(ret, fp, indent=4)
+        print_rank0(f'Save results: {args.save_details_result_path + ".json"}')
+
     def handle_metrics(self, args, results_total):
         question_ids, preds = results_total["question_ids"], results_total["preds"]
         res_df = pd.DataFrame({"question_id": question_ids, "preds": preds}, dtype=str)
+        if self.mode == "upload":
+            self.handle_upload_data(args, res_df)
+            return {}
         before_res_len = len(res_df)
         # remove duplicates
         res_df = res_df.drop_duplicates(subset=["question_id"])
@@ -93,21 +116,23 @@ class BaseTask(object):
         if len(res_df) != len(mirror_df):
             print_rank0(f"Sample nums not same: {len(res_df)} != {len(mirror_df)}", level=logging.WARNING)
         res_df = res_df.merge(mirror_df, on="question_id", how="inner")
+        if self.mode == "test":
+            res_df.to_csv(args.save_details_result_path, index=None)
         return self.calc_scores(args, res_df)
 
     def create_dataset_function(self, mt, path, args):
         path, data_mode = path.split("###")
         other_attr = self.other_attr if hasattr(self, "other_attr") else []
+        item_dataset = ItemDataset(mt, args, path, data_mode, other_attr, self.custom_dataset_functions)
         if args.iterable_dataset:
             urls = find_all_files(path)
             web_dataset = WdsDataset(mt, args, data_mode, other_attr)
             dataset = MetaDistributedWebDataset(urls, web_dataset.process_fn_dataset, args.seed, meta_names=['json'])
             # create mirror dataset
-            mirror_dataset = ItemDataset(mt, args, path, data_mode, other_attr)
-            self.dataloader_mirror[data_mode] = mirror_dataset.data
+            self.dataloader_mirror[data_mode] = item_dataset.data
         else:
-            dataset = ItemDataset(mt, args, path, data_mode, other_attr)
-            self.dataloader_mirror[data_mode] = dataset.data
+            dataset = item_dataset
+            self.dataloader_mirror[data_mode] = item_dataset.data
         return dataset
     
     def update_params(self, args, param_types: list):
@@ -118,8 +143,12 @@ class BaseTask(object):
                     merge_args[key] = value
         if hasattr(self.task_cfg, "data"):
             for key, value in self.task_cfg.data.items():
-                tmp_path = os.path.join(args.data_home_dir, value)
-                merge_args[key] = [tmp_path]
+                if isinstance(value, str):
+                    value = [value]
+                merge_args[key] = []
+                for p in value:
+                    tmp_path = os.path.join(args.data_home_dir, p)
+                    merge_args[key].append(tmp_path)
         return argparse.Namespace(**merge_args)
     
     @custom_func
@@ -292,15 +321,15 @@ class BaseTask(object):
         test_args.do_test = True
         test_args.strict_eval = True
         if test_args.strict_eval and test_args.iterable_dataset:
-            if "test" not in self.dataloader_mirror:
-                self.create_dataset_function(mt, test_args.test_data[0], test_args)
+            self.create_dataset_function(mt, test_args.test_data[0], test_args)
             test_args.eval_iters = len(self.dataloader_mirror["test"])
             test_args.strict_eval = False
-            print_rank0(f'Due to strict_eval and iterable_dataset, resize eval_iters: {test_args.eval_iters}', level=logging.WARNING)
+            print_rank0(f'Due to strict_eval and iterable_dataset, resize eval_iters: \
+                {test_args.eval_iters}', level=logging.WARNING)
         # debug
-        # test_args.strict_eval = False
-        # test_args.eval_iters = 200
-        # test_args.eval_interval = 1
+        test_args.strict_eval = False
+        test_args.eval_iters = 200
+        test_args.eval_interval = 1
         # debug
         test_args.load = test_args.save if self.need_finetune else None
         _, metrics = testing_main(test_args,
@@ -309,4 +338,27 @@ class BaseTask(object):
                                     create_dataset_function=self.partial_wo(self.create_dataset_function, mt),
                                     handle_metrics_function=self.partial_wo(self.handle_metrics, test_args),
                                     collate_fn=self.partial_wo(self.collate_fn, mt))
+        # handle upload data
+        if hasattr(test_args, 'upload_data') and test_args.upload_data:
+            self.mode = "upload"
+            print_rank0(f"Find {len(test_args.upload_data)} no-answer test datasets.")
+            for upload_data in test_args.upload_data:
+                print_rank0(f"Start {upload_data}...")
+                test_args.test_data = [f'{upload_data}###upload']
+                test_args.save_details_result_path = test_args.save_details_result_path.split('.')[0] + '-' +\
+                                                        os.path.basename(upload_data)
+                if test_args.iterable_dataset:
+                    self.create_dataset_function(mt, test_args.test_data[0], test_args)
+                    test_args.eval_iters = len(self.dataloader_mirror["upload"])
+                    test_args.strict_eval = False
+                    print_rank0(f'Due to strict_eval and iterable_dataset, resize eval_iters: \
+                        {test_args.eval_iters}', level=logging.WARNING)
+                # start
+                testing_main(test_args,
+                            model=mt.model,
+                            forward_step_eval=self.partial_wo(self.forward_step_eval, mt),
+                            create_dataset_function=self.partial_wo(self.create_dataset_function, mt),
+                            handle_metrics_function=self.partial_wo(self.handle_metrics, test_args),
+                            collate_fn=self.partial_wo(self.collate_fn, mt))
+                print_rank0(f"End {upload_data}...")
         return metrics

@@ -126,6 +126,7 @@ tasks:
       data:
         train_data: processed/TextVQA/train###train
         test_data: processed/TextVQA/val###test
+        upload_data: [processed/TextVQA/test]
       need_finetune: true
       need_evaluate: true
       data_params:
@@ -207,7 +208,9 @@ tasks:
     
     VQAv2:
       data:
+        train_data: processed/VQAV2/train###train
         test_data: processed/VQAV2/val###test
+        upload_data: [processed/VQAV2/test]
       need_finetune: false
       need_evaluate: true
       data_params:

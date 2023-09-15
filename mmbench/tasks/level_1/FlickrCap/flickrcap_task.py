@@ -5,10 +5,10 @@ from typing import Dict
 from mmbench.common.registry import Registry
 from mmbench.tasks.base_task import BaseTask
 
-@Registry.register_task('NoCaps')
-class NoCapsTask(BaseTask):
+@Registry.register_task('FlickrCap')
+class FlickrCapTask(BaseTask):
     def __init__(self, task_cfg, custom_functions, **kw_args):
-        self.task_name = 'NoCaps'
+        self.task_name = 'FlickrCap'
         super().__init__(task_cfg, custom_functions, **kw_args)
         
     def calc_scores(self, args, results_df) -> Dict:
