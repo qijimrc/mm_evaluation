@@ -26,6 +26,7 @@ from mmbench.common.utils import check_config
 
 class Evaluator:
     def __init__(self,
+                 image_length: int=0,
                  custom_cfg_path: str=None,
                  custom_functions: dict=dict(),
                  custom_dataset_functions: dict=dict(),
@@ -49,14 +50,17 @@ class Evaluator:
         
         self.tasks = {
             name: Registry.get_task_class(name)(self.default_cfg["tasks"][level][name], \
-                                                self.get_custom_functions(custom_functions, name), \
-                                                self.get_custom_functions(custom_dataset_functions, name), \
-                                                custom_dataset_functions.get(name, custom_dataset_functions))
+                                                **{"custom_functions": self.get_custom_functions(custom_functions, name), \
+                                                   "custom_dataset_functions": self.get_custom_functions(custom_dataset_functions, name), \
+                                                   "image_length": image_length})
               for level in self.default_cfg["tasks"].keys() for name in self.default_cfg["tasks"][level]
         }
     
     def get_task_names(self):
         return Registry.list_tasks()
+    
+    def get_metric_names(self):
+        return Registry.list_metrics()
 
     def get_custom_functions(self, custom_function_dict, task_name):
         ret = custom_function_dict[task_name] if task_name in custom_function_dict else {}
@@ -132,4 +136,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--eval_tasks', type=str, nargs='+', help='Specify the tasks for evaluation')
     args = parser.parse_args()
+
     evaluator = Evaluator()
+    print(evaluator.get_task_names())
+    print(evaluator.get_metric_names())
+    print("done")

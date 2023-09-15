@@ -13,8 +13,8 @@ from mmbench.common.utils import find_all_files
 
 
 class ItemDataset(Dataset, BaseDataset):
-    def __init__(self, mt, args, data_dir, data_mode, other_attr=[]):
-        super().__init__(mt, args, data_mode, other_attr)
+    def __init__(self, mt, args, data_dir, data_mode, other_attr=[], **kwargs):
+        super().__init__(mt, args, data_mode, other_attr, **kwargs)
         self.data = self.load_data(data_dir)
         self.image_qa_cache = {} # {uni_qa_key: c_qaid}
     

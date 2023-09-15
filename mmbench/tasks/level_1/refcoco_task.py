@@ -11,11 +11,11 @@ from mmbench.common.registry import Registry
 from mmbench.tasks.base_task import BaseTask
 
 
-@Registry.register_task('RefCoCo')
+@Registry.register_task('RefCOCO')
 class RefCoCoTask(BaseTask):
-    def __init__(self, task_cfg, custom_functions, **kw_args):
-        self.task_name = 'RefCoCo'
-        super().__init__(task_cfg, custom_functions, **kw_args)
+    def __init__(self, task_cfg,  **kw_args):
+        self.task_name = 'RefCOCO'
+        super().__init__(task_cfg,  **kw_args)
 
     def calc_scores(self, args, results_df) -> Dict:
         metrics_scores = {}

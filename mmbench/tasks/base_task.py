@@ -34,12 +34,12 @@ class BaseTask(object):
                  task_cfg,
                  custom_functions=dict(),
                  custom_dataset_functions=dict(),
-                 **kwargs):
+                 image_length=None):
         self.task_cfg = task_cfg
         self.need_finetune = task_cfg.get('need_finetune', False)
         self.need_evaluate = task_cfg.get('need_evaluate', False)
-        self.max_source_length = task_cfg["data_params"].get("max_source_length", 1024)
-        self.max_target_length = task_cfg["data_params"].get("max_target_length", 512)
+        self.max_source_length = task_cfg["data_params"].get("max_source_length", 256) + image_length
+        self.max_target_length = task_cfg["data_params"].get("max_target_length", 128) + image_length
         self.no_prompt = task_cfg["data_params"].get("no_prompt", False)
 
         self.custom_functions = custom_functions
@@ -123,7 +123,7 @@ class BaseTask(object):
     def create_dataset_function(self, mt, path, args):
         path, data_mode = path.split("###")
         other_attr = self.other_attr if hasattr(self, "other_attr") else []
-        item_dataset = ItemDataset(mt, args, path, data_mode, other_attr, self.custom_dataset_functions)
+        item_dataset = ItemDataset(mt, args, path, data_mode, other_attr, custom_functions=self.custom_dataset_functions)
         if args.iterable_dataset:
             urls = find_all_files(path)
             web_dataset = WdsDataset(mt, args, data_mode, other_attr)
@@ -319,25 +319,29 @@ class BaseTask(object):
         self.mode = "test"
         test_args.mode = "inference"
         test_args.do_test = True
-        test_args.strict_eval = True
-        if test_args.strict_eval and test_args.iterable_dataset:
-            self.create_dataset_function(mt, test_args.test_data[0], test_args)
-            test_args.eval_iters = len(self.dataloader_mirror["test"])
-            test_args.strict_eval = False
-            print_rank0(f'Due to strict_eval and iterable_dataset, resize eval_iters: \
-                {test_args.eval_iters}', level=logging.WARNING)
-        # debug
-        test_args.strict_eval = False
-        test_args.eval_iters = 200
-        test_args.eval_interval = 1
-        # debug
-        test_args.load = test_args.save if self.need_finetune else None
-        _, metrics = testing_main(test_args,
-                                    model=mt.model,
-                                    forward_step_eval=self.partial_wo(self.forward_step_eval, mt),
-                                    create_dataset_function=self.partial_wo(self.create_dataset_function, mt),
-                                    handle_metrics_function=self.partial_wo(self.handle_metrics, test_args),
-                                    collate_fn=self.partial_wo(self.collate_fn, mt))
+
+        # handle test data
+        if hasattr(test_args, 'test_data') and test_args.test_data is not None:
+            test_args.strict_eval = True
+            if test_args.strict_eval and test_args.iterable_dataset:
+                self.create_dataset_function(mt, test_args.test_data[0], test_args)
+                test_args.eval_iters = len(self.dataloader_mirror["test"])
+                test_args.strict_eval = False
+                print_rank0(f'Due to strict_eval and iterable_dataset, resize eval_iters: \
+                    {test_args.eval_iters}', level=logging.WARNING)
+            # debug
+            # test_args.strict_eval = False
+            # test_args.eval_iters = 200
+            # test_args.eval_interval = 1
+            # debug
+            test_args.load = test_args.save if self.need_finetune else None
+            _, metrics = testing_main(test_args,
+                                        model=mt.model,
+                                        forward_step_eval=self.partial_wo(self.forward_step_eval, mt),
+                                        create_dataset_function=self.partial_wo(self.create_dataset_function, mt),
+                                        handle_metrics_function=self.partial_wo(self.handle_metrics, test_args),
+                                        collate_fn=self.partial_wo(self.collate_fn, mt))
+
         # handle upload data
         if hasattr(test_args, 'upload_data') and test_args.upload_data:
             self.mode = "upload"

@@ -5,11 +5,11 @@ from typing import Dict
 from mmbench.common.registry import Registry
 from mmbench.tasks.base_task import BaseTask
 
-@Registry.register_task('NoCaps')
-class NoCapsTask(BaseTask):
-    def __init__(self, task_cfg, custom_functions, **kw_args):
-        self.task_name = 'NoCaps'
-        super().__init__(task_cfg, custom_functions, **kw_args)
+@Registry.register_task('COCO')
+class COCOTask(BaseTask):
+    def __init__(self, task_cfg, **kw_args):
+        self.task_name = 'COCO'
+        super().__init__(task_cfg, **kw_args)
         
     def calc_scores(self, args, results_df) -> Dict:
         metrics_scores = {}

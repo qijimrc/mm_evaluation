@@ -13,9 +13,9 @@ from mmbench.tasks.base_task import BaseTask
 
 @Registry.register_task('TallyQA')
 class TallyQATask(BaseTask):
-    def __init__(self, task_cfg, custom_functions, **kw_args):
+    def __init__(self, task_cfg, **kw_args):
         self.task_name = 'TallyQA'
-        super().__init__(task_cfg, custom_functions, **kw_args)
+        super().__init__(task_cfg, **kw_args)
 
     def calc_scores(self, args, results_df) -> Dict:
         metrics_scores = {}

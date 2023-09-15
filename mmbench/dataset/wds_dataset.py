@@ -14,7 +14,7 @@ from sat.data_utils.datasets import MetaDistributedWebDataset
 from mmbench.dataset.base_dataset import BaseDataset
 
 class WdsDataset(BaseDataset):
-    def __init__(self, mt, args, data_mode, other_attr=[]):
+    def __init__(self, mt, args, data_mode, other_attr=[], **kwargs):
         super().__init__(mt, args, data_mode, other_attr)
         self.image_qa_cache = {} # {uni_qa_key: c_qaid}
 

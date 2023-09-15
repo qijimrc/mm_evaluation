@@ -6,9 +6,9 @@ from mmbench.tasks.base_task import BaseTask
 
 @Registry.register_task('HalVQA')
 class HalVQATask(BaseTask):
-    def __init__(self, task_cfg, custom_functions, **kw_args):
+    def __init__(self, task_cfg, **kw_args):
         self.task_name = 'HalVQA'
-        super().__init__(task_cfg, custom_functions, **kw_args)
+        super().__init__(task_cfg, **kw_args)
     
     def calc_scores(self, args, result_df) -> Dict:
         # compute scores
