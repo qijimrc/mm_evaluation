@@ -35,6 +35,7 @@ from sat.data_utils import make_loaders
 from sat.ops.layernorm import LayerNorm
 from sat.helpers import print_rank0, print_all
 from sat.model.base_model import get_model
+from sat.training.deepspeed_training import setup_model_untrainable_params_and_optimizer, get_learning_rate_scheduler
 
 from .inference import evaluate_and_print_results
 
@@ -78,7 +79,7 @@ def training_main(args, model_cls, forward_step_function, create_dataset_functio
         hooks['init_function'](args, model)
 
     # Optimization related things
-    model, optimizer = setup_optimizer(args, model)
+    model, optimizer = setup_model_untrainable_params_and_optimizer(args, model)
 
     # initialize lr scheduler
     lr_scheduler = get_learning_rate_scheduler(optimizer, args.iteration, args)
@@ -121,115 +122,6 @@ def training_main(args, model_cls, forward_step_function, create_dataset_functio
     # final save
     if args.save and iteration != 0:  # TODO save
         save_checkpoint(iteration, model, optimizer, lr_scheduler, args)
-
-def setup_optimizer(args, model, config_params=None):
-    """Setup model and optimizer."""
-
-    param_groups = get_optimizer_param_groups(model)
-
-    if args.train_data is not None:
-        if args.deepspeed:
-            from packaging import version
-            print_rank0("DeepSpeed is enabled.", level='DEBUG')
-            # checking optimizer
-            optimizer_name = args.deepspeed_config.get('optimizer',{}).get('type', '')
-            if optimizer_name.startswith('sat.'):
-                from importlib import import_module
-                from functools import partial
-                # split and import 
-                optimizer_callable = getattr(import_module(optimizer_name.rsplit('.', maxsplit=1)[0]), optimizer_name.split('.')[-1])
-                optimizer_callable = partial(optimizer_callable, **args.deepspeed_config.get('optimizer', {}).get('params', {}))
-                print_rank0(f'Using optimizer {optimizer_name} from sat.')
-                del args.deepspeed_config['optimizer']
-            else:
-                optimizer_callable = None
-                
-            model, optimizer, _, _ = deepspeed.initialize(
-                model=model,
-                model_parameters=param_groups,
-                optimizer=optimizer_callable,
-                args=args,
-                mpu=mpu,
-                dist_init_required=False,
-                config_params=args.deepspeed_config
-                    if version.parse(deepspeed.version) < version.parse("0.9.0")
-                    else None
-            )
-        else:
-            raise ValueError('Currently, we only support training with deepspeed.')
-    else:
-        optimizer = None
-
-    return model, optimizer
-
-
-def get_params_for_weight_decay_optimization(module):
-    weight_decay_params = {'params': []}
-    no_weight_decay_params = {'params': [], 'weight_decay': 0.0}
-    for module_ in module.modules():
-        if isinstance(module_, (LayerNorm, torch.nn.LayerNorm)):
-            no_weight_decay_params['params'].extend(
-                [p for p in list(module_._parameters.values())
-                 if p is not None and p.requires_grad])
-        else:
-            weight_decay_params['params'].extend(
-                [p for n, p in list(module_._parameters.items())
-                 if p is not None and n != 'bias' and p.requires_grad])
-            no_weight_decay_params['params'].extend(
-                [p for n, p in list(module_._parameters.items())
-                 if p is not None and n == 'bias' and p.requires_grad])
-
-    if len(weight_decay_params['params']) == 0:
-        return (no_weight_decay_params,)
-    elif len(no_weight_decay_params['params']) == 0:
-        return (weight_decay_params,)
-
-    return weight_decay_params, no_weight_decay_params
-
-
-def get_optimizer_param_groups(model):
-    # Build parameter groups (weight decay and non-decay).
-    if hasattr(model, 'module'):
-        model = model.module
-    param_groups = get_params_for_weight_decay_optimization(model)  # TODO move to here
-    # Add model parallel attribute if it is not set.
-    for param_group in param_groups:
-        for param in param_group['params']:
-            if not hasattr(param, 'model_parallel'):
-                param.model_parallel = False
-    return param_groups
-
-
-def get_learning_rate_scheduler(optimizer, iteration, args,
-                                auto_warmup_steps=100, auto_warmup_rate=0.05):
-    """Build the learning rate scheduler."""
-
-    # Add linear learning rate scheduler.
-    if args.lr_decay_iters is not None:
-        num_iters = args.lr_decay_iters
-    else:
-        num_iters = args.train_iters
-    num_iters = max(1, num_iters)
-    init_step = max(iteration - auto_warmup_steps, 0)
-    if args.mode == 'pretrain' and iteration == 0:
-        auto_warmup_steps = 0
-    # If init_step <= current_steps <= init_step + auto_warmup_steps,
-    # lr = auto_warmup_rate * args.lr.
-    # This overrides other rules.
-    warmup_iter = args.warmup * num_iters
-    lr_scheduler = AnnealingLR(optimizer,
-                               start_lr=args.lr,
-                               warmup_iter=warmup_iter,
-                               num_iters=num_iters,
-                               decay_style=args.lr_decay_style,
-                               last_iter=init_step,
-                               decay_ratio=args.lr_decay_ratio,
-                               auto_warmup_steps=auto_warmup_steps,
-                               auto_warmup_rate=auto_warmup_rate
-                               )
-
-    return lr_scheduler
-
 
 def train(model, optimizer, lr_scheduler,
         train_data, val_data, timers, args, 
