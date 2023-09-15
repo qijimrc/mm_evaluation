@@ -26,14 +26,17 @@ from mmbench.common.utils import check_config
 
 class Evaluator:
     def __init__(self,
+                 image_length: int=0,
                  custom_cfg_path: str=None,
                  custom_functions: dict=dict(),
+                 custom_dataset_functions: dict=dict(),
                  cfg_path: str=os.path.dirname(__file__)+'/config.yaml',
                  server_addr: str=None) -> None:
         """
         Args:
             custom_cfg_path (str, optional): _description_. Defaults to None.
-            custom_functions (dict, optional): {"forward_step": func, ...} or {"task": {"forward_step": func, ...}, ...}
+            custom_functions (dict, optional): {"forward_step": func, ...} or {"task_name": {"forward_step": func, ...}, ...}
+            custom_dataset_functions (dict, optional): {"normal_qa": func, ...} or {"task_name": {"normal_qa": func, ...}, ...}
             cfg_path (str, optional): _description_. Defaults to os.path.dirname(__file__)+'/config.yaml'.
         """
         self.default_cfg = OmegaConf.load(cfg_path)
@@ -46,12 +49,26 @@ class Evaluator:
         self.data_home_dir = self.default_cfg["home_env"][server_addr]["data_home"]
         
         self.tasks = {
-            name: Registry.get_task_class(name)(self.default_cfg["tasks"][level][name], custom_functions.get(name, custom_functions))
+            name: Registry.get_task_class(name)(self.default_cfg["tasks"][level][name], \
+                                                **{"custom_functions": self.get_custom_functions(custom_functions, name), \
+                                                   "custom_dataset_functions": self.get_custom_functions(custom_dataset_functions, name), \
+                                                   "image_length": image_length})
               for level in self.default_cfg["tasks"].keys() for name in self.default_cfg["tasks"][level]
         }
     
     def get_task_names(self):
         return Registry.list_tasks()
+    
+    def get_metric_names(self):
+        return Registry.list_metrics()
+
+    def get_custom_functions(self, custom_function_dict, task_name):
+        ret = custom_function_dict[task_name] if task_name in custom_function_dict else {}
+        task_names = set(self.get_task_names())
+        for k,v in custom_function_dict.items():
+            if k not in task_names:
+                ret[k] = v
+        return ret
         
     def _update_params(self, custom_params):
         """update self.default_cfg using custom_params
@@ -84,6 +101,7 @@ class Evaluator:
                 args_cp.iteration = mt.reset_model(c_task)
                 print_rank0(f'Task ({i+1}/{len(eval_tasks)}) begin: {task_name}')
                 # refine ckpt path
+                args_cp.save_details_result_path = os.path.join(args.save, f'{args.experiment_name}_{c_task.task_name}-{timestring}.csv')
                 args_cp.experiment_name = f'{args_cp.experiment_name}_{c_task.task_name}-{timestring}'
                 args_cp.save = os.path.join(args_cp.save, args_cp.experiment_name)
                 # finetune
@@ -118,4 +136,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--eval_tasks', type=str, nargs='+', help='Specify the tasks for evaluation')
     args = parser.parse_args()
+
     evaluator = Evaluator()
+    print(evaluator.get_task_names())
+    print(evaluator.get_metric_names())
+    print("done")

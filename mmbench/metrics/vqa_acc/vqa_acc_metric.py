@@ -32,21 +32,20 @@ class VqaAccMetric(BaseMetric):
 
         # print accuracies
         overall_acc = vqa_scorer.accuracy["overall"]
-        scores["agg_metrics"] = overall_acc
-
-        # print("Overall Accuracy is: %.02f\n" % overall_acc)
-        # print("Per Answer Type Accuracy is the following:")
+        scores["avg_metrics"] = overall_acc
 
         for ans_type in vqa_scorer.accuracy["perAnswerType"]:
             print(
                 "%s : %.02f"
                 % (ans_type, vqa_scorer.accuracy["perAnswerType"][ans_type])
             )
-            scores[ans_type] = vqa_scorer.accuracy["perAnswerType"][ans_type]
+            scores[f'Atype-{ans_type}'] = vqa_scorer.accuracy["perAnswerType"][ans_type]
 
-        # with open(
-        #     os.path.join(registry.get_path("output_dir"), "evaluate.txt"), "a"
-        # ) as f:
-        #     f.write(json.dumps(metrics) + "\n")
+        for ans_type in vqa_scorer.accuracy["perQuestionType"]:
+            print(
+                "%s : %.02f"
+                % (ans_type, vqa_scorer.accuracy["perQuestionType"][ans_type])
+            )
+            scores[f'Qtype-{ans_type}'] = vqa_scorer.accuracy["perQuestionType"][ans_type]
 
         return scores

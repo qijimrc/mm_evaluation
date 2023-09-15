@@ -8,36 +8,8 @@ from utils import save_data
 
 DATASET_NAWE = "Visual7W"
 
-def refine_box(box, scale, new_width, new_height):
-    box = [min(round(box[0]*scale), new_width-1), min(round(box[1]*scale), new_height-1), min(round(box[2]*scale), new_width-1), min(round(box[3]*scale), new_height-1)]
-    box = [box[0]/new_width, box[1]/new_height, box[2]/new_width, box[3]/new_height]
-    box = [math.floor(x*1000) for x in box]
-    if box[0] >= 1000 or box[1] >= 1000 or box[2] >= 1000 or box[3] >= 1000:
-        box = [min(box[0], 999), min(box[1], 999), min(box[2], 999), min(box[3], 999)]
-    return box
-
-def get_text_by_box(boxlist, sep=" "):
-    strs = [f"{box[0]:03d},{box[1]:03d},{box[2]:03d},{box[3]:03d}" for box in boxlist]
-    random.shuffle(strs)
-    return "{}[[{}]]".format(sep, ";".join(strs))
-
-def parse_resize(img, h, w):
-    totalpatch, lpatch = h, w
-    # maximize scale s.t.
-    scale = math.sqrt(totalpatch * (lpatch / img.size[1]) * (lpatch / img.size[0]))
-    num_feasible_rows = max(min(math.floor(scale * img.size[1] / lpatch), totalpatch), 1)
-    num_feasible_cols = max(min(math.floor(scale * img.size[0] / lpatch), totalpatch), 1)
-    target_height = max(num_feasible_rows * lpatch, 1)
-    target_width = max(num_feasible_cols * lpatch, 1)
-    return scale, target_width, target_height
-
 def get_box(b):
     return max(b['x'], 0), max(b['y'], 0), b['x']+b['width'], b['y']+b['height']
-
-def build_sample_input(question, answer, boxes, scale, new_width, new_height):
-    new_boxes = [refine_box(box, scale, new_width, new_height) for box in boxes]
-    box_txt = [get_text_by_box([box], sep="") for box in new_boxes]
-    return box_txt 
 
 def process_data(root_dir, mode):
     data_file = os.path.join(root_dir, 'raw/Visual7W/dataset_v7w_pointing.json')
@@ -61,8 +33,6 @@ def process_data(root_dir, mode):
             drop_num += 1
             print(f'not found {image_path}.')
             continue
-        img_data = Image.open(image_path).convert('RGB')
-        scale, new_width, new_height = parse_resize(img_data, 400, 14)
         for qa in img["qa_pairs"]:
             boxes = []
             boxes.append(key2box[qa['answer']])
@@ -72,14 +42,16 @@ def process_data(root_dir, mode):
             random.shuffle(permute)
             rand_boxes = [boxes[i] for i in permute]
             answer = permute.index(0)
-            choices = build_sample_input(qa['question'], answer, rand_boxes, scale, new_width, new_height)
             c_data = {
-                "datatype": "multichoice",
+                "datatype": "grounding_choice",
                 "question_id": qa["qa_id"],
                 "metadata": {
                     "question": qa["question"],
-                    "choices": choices,
+                    "choices": [f'<ph_st><ph_ed>' for _ in permute],
                     "answer": answer,
+                    "question_boxes": [],
+                    "choices_boxes": [[i] for i in range(len(permute))],
+                    "boxes": rand_boxes,
                     "type": qa["type"]
                 }
             }

@@ -81,7 +81,7 @@ def process_data(root_dir, save_dir, img_dir, mode):
                 #     "etype": ex_types
                 # }
                 all_results[image_path].append(c_res)
-            item_num += 1
+                item_num += 1
     all_data = [{"image_path": key, "json": value} for key, value in all_results.items()]
     random.shuffle(all_data)
     image_num = save_data(all_data, save_dir, DATASET_NAWE, mode)

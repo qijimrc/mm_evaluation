@@ -15,23 +15,18 @@ class GroundingMetric(BaseMetric):
 
 
     @classmethod
-    def calc_scores(self, res_examples: List[Example], gt_examples: List[Example]) -> Dict:
+    def calc_scores(self, answers, preds) -> Dict:
         """ Use official VQA evaluation script to report metrics.
           Args:
-            @res_examples: a list of result examples instanced by `Example` class.
-            @gt_examples: a list of ground truth examples.
+            @preds: a list of result.
+            @answers: a list of ground truth.
           Return:
             the calculated metric scores.
         """
         scores = {}
 
-        res_examples = {ex.idx:ex for ex in res_examples}
-        gt_examples = {ex.idx:ex for ex in gt_examples}
-
         sum_accu, sum_iou, cnt_test = 0.0, 0.0, 0.0
-        for idx, ex in gt_examples.items():
-          gt_boxes = ex.answers
-          res_boxes = res_examples[idx].answers
+        for gt_boxes, res_boxes in zip(answers, preds):
           if type(res_boxes) is not list:
               raise ValueError("The answers of each resulting example must be a list of boxes.")
           iou, union = box_iou(gt_boxes, res_boxes)

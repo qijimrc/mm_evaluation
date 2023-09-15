@@ -3,11 +3,6 @@ from typing import Any
 from mmbench.common.example import Example
 from mmbench.common.registry import Registry
 from mmbench.metrics.base_metric import BaseMetric
-from mmbench.metrics.vqa_acc.vqa import VQA
-from mmbench.metrics.vqa_acc.vqa_eval import VQAEval
-from typing import List, Dict
-
-
 
 question_ids_to_exclude = []
 
@@ -146,4 +141,4 @@ class ANLSScorer(BaseMetric):
                 'per_sample_result':perSampleMetrics
                 }
 
-        return resDict;
+        return resDict
