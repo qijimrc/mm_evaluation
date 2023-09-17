@@ -1,9 +1,3 @@
-'''
-@File    :   base_task.py
-@Time    :   2023/09
-@Author  :   Wenmeng Yu
-@Contact :   iyuge2@qq.com
-'''
 import os
 import copy
 import json
@@ -18,7 +12,7 @@ from collections import defaultdict
 from torch.nn import CrossEntropyLoss
 
 from sat import mpu
-from sat.helpers import print_rank0
+from sat.helpers import print_rank0, print_all
 from sat.model.mixins import CachedAutoregressiveMixin
 from sat.generation.autoregressive_sampling import filling_sequence
 from sat.generation.sampling_strategies import BaseStrategy, BeamSearchStrategy
@@ -27,6 +21,7 @@ from sat.data_utils.webds import MetaDistributedWebDataset
 from mmbench.common.utils import find_all_files
 from mmbench.common.inference import testing_main
 from mmbench.common.training import training_main
+from mmbench.common.global_vars import *
 from mmbench.dataset import ItemDataset, WdsDataset
 
 class BaseTask(object):
@@ -103,6 +98,9 @@ class BaseTask(object):
     def handle_metrics(self, args, results_total):
         question_ids, preds = results_total["question_ids"], results_total["preds"]
         res_df = pd.DataFrame({"question_id": question_ids, "preds": preds}, dtype=str)
+        # post process
+        res_df = res_df[res_df["question_ids"] != "-1"]
+        res_df["preds"] = res_df["preds"].apply(lambda x: x.replace(PAD_STR, ""))
         if self.mode == "upload":
             self.handle_upload_data(args, res_df)
             return {}
@@ -281,7 +279,7 @@ class BaseTask(object):
         data_b = self.get_batch(
             data_iterator, args, timers)
         if data_b is None:
-            return torch.tensor(0, device=args.device), {}
+            return torch.tensor(0, device=args.device), {"question_ids": "-1", "preds": PAD_STR}
         timers('batch generator').stop()
         data_b, tokens, context_len = self.preprocess_datab_eval(data_b)
         question_id = data_b.pop('question_id')[0]
@@ -291,7 +289,7 @@ class BaseTask(object):
 
         outputs = outputs.unsqueeze(0)
         pred = mt.tokenizer.batch_decode(outputs, skip_special_tokens=True)[0].strip()
-        metrics = {"question_ids": str(question_id), "preds": pred}
+        metrics = {"question_ids": str(question_id), "preds": str(pred)}
         return torch.tensor(0, device=outputs.device), metrics
     
     def do_finetune(self, args, mt):
