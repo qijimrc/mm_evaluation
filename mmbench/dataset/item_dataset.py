@@ -6,7 +6,7 @@ import jsonlines
 from io import BytesIO
 from PIL import Image
 from torch.utils.data import Dataset
-from sat.helpers import print_rank0
+from sat.helpers import print_rank0, print_all
 
 from mmbench.dataset.base_dataset import BaseDataset
 from mmbench.common.utils import find_all_files
@@ -53,7 +53,7 @@ class ItemDataset(Dataset, BaseDataset):
             else:
                 img = Image.open(self.img_pad).convert('RGB')
         except Exception as e:
-            print_rank0(e, level=logging.WARNING)
+            print_all(e, level=logging.WARNING)
             return {}
         img_dict = self.process_img(img)
         # text
@@ -63,16 +63,17 @@ class ItemDataset(Dataset, BaseDataset):
             if self.args.train_data_load_mode == "random":
                 dialogues = random.choice(dialogues)
             elif self.args.train_data_load_mode == "epoch_round":
-                qa_key = data["key"]
+                qa_key = f'{data["image_path"]}-{data["key"]}'
                 # if not cache, start from a random index
                 load_id = (self.image_qa_cache.get(qa_key, random.randint(0, len(dialogues)-1)-1) + 1) % len(dialogues)
                 self.image_qa_cache[qa_key] = load_id
                 dialogues = dialogues[load_id]
             else:
                 raise ValueError("Unknown train_data_load_mode: {}, support random / epoch_round".format(self.args.train_data_load_mode))
-        text_dict = eval(f'self.{dialogues["datatype"]}')(dialogues["metadata"])
+        uni_key = f'{data["image_path"]}-{dialogues["question_id"]}'
+        text_dict = eval(f'self.{dialogues["datatype"]}')(dialogues["metadata"], uni_key, img=img)
         if text_dict == None:
-            print_rank0(f"Process text failed. Please check the max_target_length & max_source_length.\n The data is {dialogues['metadata']}", level=logging.WARNING)
+            print_all(f"Process text failed. Please check the max_target_length & max_source_length.\n The data is {dialogues['metadata']}", level=logging.WARNING)
             return {}
         # other attr
         ret = {**img_dict, **text_dict, "question_id": str(dialogues["question_id"])}

@@ -8,7 +8,7 @@ from PIL import Image
 from functools import partial
 from typing import Dict, List
 from torch.utils.data import Dataset
-from sat.helpers import print_rank0
+from sat.helpers import print_rank0, print_all
 from sat.data_utils.datasets import MetaDistributedWebDataset
 
 from mmbench.dataset.base_dataset import BaseDataset
@@ -27,7 +27,7 @@ class WdsDataset(BaseDataset):
                 else:
                     img = Image.open(self.img_pad).convert('RGB')
             except Exception as e:
-                print_rank0(e, level=logging.WARNING)
+                print_all(e, level=logging.WARNING)
                 continue
             img_dict = self.process_img(img)
             # json
@@ -36,7 +36,7 @@ class WdsDataset(BaseDataset):
                 if self.args.train_data_load_mode == "random":
                     dialogues = [random.choice(dialogues)]
                 elif self.args.train_data_load_mode == "epoch_round":
-                    qa_key = data["key"]
+                    qa_key = f'{data["__url__"]}-{data["id"].decode("utf-8")}'
                     # if not cache, start from a random index
                     load_id = (self.image_qa_cache.get(qa_key, random.randint(0, len(dialogues)-1)-1) + 1) % len(dialogues)
                     self.image_qa_cache[qa_key] = load_id
@@ -45,9 +45,10 @@ class WdsDataset(BaseDataset):
                     raise ValueError("Unknown train_data_load_mode: {}".format(self.args.train_data_load_mode))
             for qa in dialogues:
                 ret = {"question_id": qa["question_id"]}
-                text_dict = eval(f'self.{qa["datatype"]}')(qa["metadata"])
+                uni_key = f'{data["__url__"]}-{qa["question_id"]}'
+                text_dict = eval(f'self.{qa["datatype"]}')(qa["metadata"], uni_key, img=img)
                 if text_dict == None:
-                    print_rank0(f"Process text failed. Please check the max_target_length & max_source_length.\n The data is {qa['metadata']}", level=logging.WARNING)
+                    print_all(f"Process text failed. Please check the max_target_length & max_source_length.\n The data is {qa['metadata']}", level=logging.WARNING)
                     continue
                 ret.update(text_dict)
                 ret.update(img_dict)
