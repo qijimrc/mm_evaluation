@@ -1,14 +1,30 @@
 import os
 import json
-import tqdm
 import random
-import pandas as pd
-import webdataset as wds
-from collections import Counter
 
-from utils import get_image_bytes, save_data
+from utils import save_data
 
 DATASET_NAWE = "CWB"
+
+import re
+
+def fix_spacing(text):
+    # 去除标点符号前的空格
+    text = re.sub(r' \.', '.', text)
+    text = re.sub(r' ,', ',', text)
+    text = re.sub(r' \?', '?', text)
+    text = re.sub(r' !', '!', text)
+    text = re.sub(r' ;', ';', text)
+    text = re.sub(r' :', ':', text)
+    text = re.sub(r' \$', ':', text)
+
+    # 循环处理引号，直到没有要处理的引号为止
+    while re.search(r' " ([^"]+?) "', text):
+        text = re.sub(r' " ([^"]+?) "', r' "\1"', text)
+    
+    text = re.sub(r' " (.*?)"$', r' "\1"', text)
+
+    return text
 
 def process_data(root_dir, mode):
     img_dir = os.path.join(root_dir, f"raw/CWB/flickr30k-images")
@@ -33,7 +49,7 @@ def process_data(root_dir, mode):
                 "datatype": "grounding_caption",
                 "question_id": c_data["id"],
                 "metadata": {
-                    "caption":c_data["sentence"],
+                    "caption":fix_spacing(c_data["sentence"]),
                     "caption_boxes": c_data["boxes_seq"],
                     "boxes": c_data["boxes"]
                 }
