@@ -53,12 +53,12 @@ class BaseDataset(object):
         return self.mt.text_processor(answer, prompt)
     
     @custom_func
-    def normal_qa(self, metadata):
+    def normal_qa(self, metadata, uni_key, **kwargs):
         text_dict = self.process_text(metadata["answer"], metadata["question"])
         return text_dict
 
     @custom_func
-    def normal_caption(self, metadata):
+    def normal_caption(self, metadata, uni_key, **kwargs):
         if self.args.no_prompt:
             text_dict = self.process_text(metadata["answer"], "")
         else:
@@ -69,7 +69,7 @@ class BaseDataset(object):
         return text_dict
 
     @custom_func
-    def multichoice(self, metadata):
+    def multichoice(self, metadata, uni_key, **kwargs):
         def generate_prompt_in_multi_choice(choices, question):
             language_zh = is_chinese(question)
             template = self.templates_zh if language_zh else self.templates_en
@@ -88,11 +88,11 @@ class BaseDataset(object):
         return text_dict
     
     @custom_func
-    def grounding_qa(self, metadata):
+    def grounding_qa(self, metadata, uni_key, **kwargs):
         pass
 
     @custom_func
-    def grounding_choice(self, metadata):
+    def grounding_choice(self, metadata, uni_key, **kwargs):
         """Please use "A / B / C / D /..." to represent options
         """
         pass
