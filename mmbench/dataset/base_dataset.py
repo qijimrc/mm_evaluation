@@ -27,20 +27,7 @@ class BaseDataset(object):
                 return self.custom_functions[func.__name__](*args, **kwargs)
             return func(self, *args, **kwargs)
         return new_func
-
-    @custom_func
-    def box_to_text(self, img, box):
-        """Convert box to text
-
-        Args:
-            img (PIL.Image): image data
-            box (int list): [x0, y0, x1, y1]
-
-        Returns:
-            text(string): text representation of the box
-        """
-        pass
-
+    
     @custom_func
     def process_img(self, img):
         img_dict = {'vision': self.mt.image_processor(img)}
@@ -95,4 +82,8 @@ class BaseDataset(object):
     def grounding_choice(self, metadata, uni_key, **kwargs):
         """Please use "A / B / C / D /..." to represent options
         """
+        pass
+
+    @custom_func
+    def grounding_caption(self, metadata, uni_key, **kwargs):
         pass
