@@ -67,10 +67,10 @@ def training_main(args, model_cls, forward_step_function, create_dataset_functio
         model = model_cls
     
     # Config model IO
-    if args.load is not None:
-        args.iteration = load_checkpoint(model, args)
-    else:
-        args.iteration = 0
+    # if args.load is not None:
+    #     args.iteration = load_checkpoint(model, args)
+    # else:
+    #     args.iteration = 0
 
     torch.distributed.barrier()
 

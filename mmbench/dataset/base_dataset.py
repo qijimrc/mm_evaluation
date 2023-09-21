@@ -27,20 +27,7 @@ class BaseDataset(object):
                 return self.custom_functions[func.__name__](*args, **kwargs)
             return func(self, *args, **kwargs)
         return new_func
-
-    @custom_func
-    def box_to_text(self, img, box):
-        """Convert box to text
-
-        Args:
-            img (PIL.Image): image data
-            box (int list): [x0, y0, x1, y1]
-
-        Returns:
-            text(string): text representation of the box
-        """
-        pass
-
+    
     @custom_func
     def process_img(self, img):
         img_dict = {'vision': self.mt.image_processor(img)}
@@ -53,12 +40,12 @@ class BaseDataset(object):
         return self.mt.text_processor(answer, prompt)
     
     @custom_func
-    def normal_qa(self, metadata):
+    def normal_qa(self, metadata, uni_key, **kwargs):
         text_dict = self.process_text(metadata["answer"], metadata["question"])
         return text_dict
 
     @custom_func
-    def normal_caption(self, metadata):
+    def normal_caption(self, metadata, uni_key, **kwargs):
         if self.args.no_prompt:
             text_dict = self.process_text(metadata["answer"], "")
         else:
@@ -69,7 +56,7 @@ class BaseDataset(object):
         return text_dict
 
     @custom_func
-    def multichoice(self, metadata):
+    def multichoice(self, metadata, uni_key, **kwargs):
         def generate_prompt_in_multi_choice(choices, question):
             language_zh = is_chinese(question)
             template = self.templates_zh if language_zh else self.templates_en
@@ -88,11 +75,15 @@ class BaseDataset(object):
         return text_dict
     
     @custom_func
-    def grounding_qa(self, metadata):
+    def grounding_qa(self, metadata, uni_key, **kwargs):
         pass
 
     @custom_func
-    def grounding_choice(self, metadata):
+    def grounding_choice(self, metadata, uni_key, **kwargs):
         """Please use "A / B / C / D /..." to represent options
         """
+        pass
+
+    @custom_func
+    def grounding_caption(self, metadata, uni_key, **kwargs):
         pass
