@@ -96,10 +96,10 @@ class BaseTask(object):
         print_rank0(f'Save results: {args.save_details_result_path + ".json"}')
 
     def handle_metrics(self, args, results_total):
-        question_ids, preds = results_total["question_ids"], results_total["preds"]
-        res_df = pd.DataFrame({"question_id": question_ids, "preds": preds}, dtype=str)
+        question_ids, preds, labels = results_total["question_ids"], results_total["preds"], results_total["labels"]
+        res_df = pd.DataFrame({"question_id": question_ids, "preds": preds, "labels": labels}, dtype=str)
         # post process
-        res_df = res_df[res_df["question_ids"] != "-1"]
+        res_df = res_df[res_df["question_id"] != "-1"]
         res_df["preds"] = res_df["preds"].apply(lambda x: x.replace(PAD_STR, ""))
         if self.mode == "upload":
             self.handle_upload_data(args, res_df)
@@ -114,7 +114,7 @@ class BaseTask(object):
         if len(res_df) != len(mirror_df):
             print_rank0(f"Sample nums not same: {len(res_df)} != {len(mirror_df)}", level=logging.WARNING)
         res_df = res_df.merge(mirror_df, on="question_id", how="inner")
-        if self.mode == "test":
+        if self.mode == "test" and hasattr(args, "save_details_results") and args.save_details_results:
             res_df.to_csv(args.save_details_result_path, index=None)
         return self.calc_scores(args, res_df)
 
@@ -283,13 +283,17 @@ class BaseTask(object):
         timers('batch generator').stop()
         data_b, tokens, context_len = self.preprocess_datab_eval(data_b)
         question_id = data_b.pop('question_id')[0]
+        labels = data_b.pop('labels')
+        
         model.add_mixin('auto-regressive', CachedAutoregressiveMixin())
         outputs = self.chat(tokens, mt, args, **data_b)[0][context_len:]
         model.del_mixin('auto-regressive')
 
         outputs = outputs.unsqueeze(0)
         pred = mt.tokenizer.batch_decode(outputs, skip_special_tokens=True)[0].strip()
-        metrics = {"question_ids": str(question_id), "preds": str(pred)}
+        labels.masked_fill_(labels == -100, mt.tokenizer.pad_token_id)
+        decode_labels = mt.tokenizer.batch_decode(labels, skip_special_tokens=True)
+        metrics = {"question_ids": str(question_id), "preds": str(pred), "labels": str(decode_labels)}
         return torch.tensor(0, device=outputs.device), metrics
     
     def do_finetune(self, args, mt):
