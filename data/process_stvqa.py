@@ -16,9 +16,10 @@ def process_data(root_dir, mode):
     save_dir = os.path.join(root_dir, f"processed/{DATASET_NAME}/{mode}")
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
+    question_ids = set()
     if mode == "train":
         data = []
-        for path_id in [1,2,3]:
+        for path_id in [3]:
             with open(os.path.join(filename, f"{mode}_task_{path_id}.json"), "r", encoding="utf-8") as fp:
                 data.extend(json.load(fp)['data'])
     else:
@@ -45,15 +46,19 @@ def process_data(root_dir, mode):
             all_results[image_path] = []
         c_data = {
             "datatype": "normal_qa",
-            "question_id": "%09d" %item_num,
+            "question_id": c_data["question_id"],
             "metadata": {
                 "question": c_data["question"],
                 "answer": answer,
                 "answer_list": answer_list
             }
         }
-        all_results[image_path].append(c_data)
-        item_num += 1
+        if c_data["question_id"] in question_ids:
+            print(f"[{mode}]: find repeated question_ids, {c_data['question_id']}")
+        else:
+            question_ids.add(c_data["question_id"])
+            all_results[image_path].append(c_data)
+            item_num += 1
     # save tarfiles
     all_data = [{"image_path": key, "json": value} for key, value in all_results.items()]
     random.shuffle(all_data)
@@ -61,7 +66,7 @@ def process_data(root_dir, mode):
     print(f"Save: {image_num} images, {item_num} samples. Drop: {drop_num} samples")
 
 if __name__ == "__main__":
-    root_dir = "/nxchinamobile2/shared/mmbench_datasets"
+    root_dir = "/mnt/shared/img_datasets/mmbench_datasets"
     for mode in ['train', 'test_task_1','test_task_2','test_task_3']:
         print(f"process {mode}.")
         process_data(root_dir, mode)
