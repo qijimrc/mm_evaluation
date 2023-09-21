@@ -1,12 +1,14 @@
 # Configure the task for evaluation
 
-server_addr: ningxia
+server_addr: zhongwei
 
 home_env:
   ningxia:
     data_home: /nxchinamobile2/shared/mmbench_datasets
   wulan:
     data_home: /mnt/shared/img_datasets/mmbench_datasets
+  zhongwei:
+    data_home: /share/img_datasets/mmbench_datasets
 
 tasks:
   level_1:
@@ -18,8 +20,8 @@ tasks:
       need_finetune: true
       need_evaluate: true
       data_params:
-        max_source_length: 256
-        max_target_length: 128
+        max_source_length: 1625
+        max_target_length: 423
         iterable_dataset: false
         train_data_load_mode: epoch_round
         block_size: 1000
@@ -47,8 +49,8 @@ tasks:
       need_finetune: true
       need_evaluate: true
       data_params:
-        max_source_length: 256
-        max_target_length: 128
+        max_source_length: 1625
+        max_target_length: 423
         iterable_dataset: false
         train_data_load_mode: epoch_round
         block_size: 1000
@@ -76,8 +78,8 @@ tasks:
       need_finetune: true
       need_evaluate: true
       data_params:
-        max_source_length: 256
-        max_target_length: 128
+        max_source_length: 1625
+        max_target_length: 423
         iterable_dataset: false
         train_data_load_mode: epoch_round
         block_size: 500
@@ -104,8 +106,8 @@ tasks:
       need_finetune: true
       need_evaluate: true
       data_params:
-        max_source_length: 256
-        max_target_length: 128
+        max_source_length: 1625
+        max_target_length: 423
         iterable_dataset: false
         train_data_load_mode: epoch_round
         block_size: 500
@@ -132,8 +134,8 @@ tasks:
       need_finetune: true
       need_evaluate: true
       data_params:
-        max_source_length: 256
-        max_target_length: 128
+        max_source_length: 1625
+        max_target_length: 423
         iterable_dataset: false
         train_data_load_mode: epoch_round
         block_size: 500
@@ -160,8 +162,8 @@ tasks:
       need_finetune: true
       need_evaluate: true
       data_params:
-        max_source_length: 256
-        max_target_length: 128
+        max_source_length: 1625
+        max_target_length: 423
         iterable_dataset: false
         train_data_load_mode: epoch_round
         block_size: 500
@@ -187,8 +189,8 @@ tasks:
       need_finetune: false
       need_evaluate: true
       data_params:
-        max_source_length: 256
-        max_target_length: 256
+        max_source_length: 1625
+        max_target_length: 423
         iterable_dataset: false
         train_data_load_mode: epoch_round
         block_size: 1000
@@ -216,8 +218,8 @@ tasks:
       need_finetune: false
       need_evaluate: true
       data_params:
-        max_source_length: 256
-        max_target_length: 128
+        max_source_length: 1625
+        max_target_length: 423
         iterable_dataset: false
         train_data_load_mode: epoch_round
         block_size: 500
@@ -245,8 +247,8 @@ tasks:
       need_finetune: true
       need_evaluate: true
       data_params:
-        max_source_length: 256
-        max_target_length: 256
+        max_source_length: 1625
+        max_target_length: 423
         iterable_dataset: false
         train_data_load_mode: epoch_round
         block_size: 500
@@ -273,8 +275,8 @@ tasks:
       need_finetune: false
       need_evaluate: true
       data_params:
-        max_source_length: 256
-        max_target_length: 128
+        max_source_length: 1625
+        max_target_length: 423
         iterable_dataset: false
         train_data_load_mode: epoch_round
         block_size: 500
@@ -302,8 +304,8 @@ tasks:
       need_finetune: false
       need_evaluate: true
       data_params:
-        max_source_length: 256
-        max_target_length: 256
+        max_source_length: 1625
+        max_target_length: 423
         iterable_dataset: false
         train_data_load_mode: epoch_round
         block_size: 500
@@ -331,8 +333,8 @@ tasks:
       need_finetune: false
       need_evaluate: true
       data_params:
-        max_source_length: 256
-        max_target_length: 128
+        max_source_length: 1625
+        max_target_length: 423
         iterable_dataset: false
         train_data_load_mode: epoch_round
         block_size: 500
@@ -360,8 +362,8 @@ tasks:
       need_finetune: false
       need_evaluate: true
       data_params:
-        max_source_length: 256
-        max_target_length: 128
+        max_source_length: 1625
+        max_target_length: 423
         iterable_dataset: false
         train_data_load_mode: epoch_round
         block_size: 500
@@ -389,8 +391,8 @@ tasks:
       need_finetune: false
       need_evaluate: true
       data_params:
-        max_source_length: 256
-        max_target_length: 128
+        max_source_length: 1625
+        max_target_length: 423
         iterable_dataset: false
         train_data_load_mode: epoch_round
         block_size: 500
@@ -418,8 +420,8 @@ tasks:
       need_finetune: false
       need_evaluate: true
       data_params:
-        max_source_length: 256
-        max_target_length: 128
+        max_source_length: 1625
+        max_target_length: 423
         iterable_dataset: false
         train_data_load_mode: epoch_round
         block_size: 500
@@ -446,8 +448,8 @@ tasks:
       need_finetune: false
       need_evaluate: true
       data_params:
-        max_source_length: 256
-        max_target_length: 128
+        max_source_length: 1625
+        max_target_length: 423
         iterable_dataset: false
         train_data_load_mode: epoch_round
         block_size: 500
@@ -475,8 +477,8 @@ tasks:
       need_finetune: false
       need_evaluate: true
       data_params:
-        max_source_length: 256
-        max_target_length: 128
+        max_source_length: 1625
+        max_target_length: 423
         iterable_dataset: false
         train_data_load_mode: epoch_round
         block_size: 500
@@ -504,8 +506,8 @@ tasks:
       need_finetune: true
       need_evaluate: true
       data_params:
-        max_source_length: 256
-        max_target_length: 128
+        max_source_length: 1625
+        max_target_length: 423
         iterable_dataset: false
         train_data_load_mode: epoch_round
         block_size: 500
