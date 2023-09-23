@@ -18,11 +18,11 @@ def generate_prompt_in_multi_choice(choices, question, language="zh"):
     return prompt
 
 def get_image_bytes(image_path, img_save_path):
-    img = Image.open(image_path).convert('RGB')
-    img.save(img_save_path, format="jpeg")
-    img_bytes = io.BytesIO()
-    img.save(img_bytes, format="jpeg")
-    return img_bytes.getvalue()
+    with open(image_path, "rb") as f:
+        data = f.read()
+    with open(img_save_path, "wb") as f:
+        f.write(data)
+    return data
     
 def save_files(save_dir, filename, result_tar, result_meta):
     with wds.TarWriter(os.path.join(save_dir, f'{filename}.tar'), "w") as tar:
