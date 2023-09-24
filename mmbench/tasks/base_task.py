@@ -111,8 +111,8 @@ class BaseTask(object):
             print_rank0(f"Sample nums change after removing duplicates: {before_res_len} -> {len(res_df)}", level=logging.WARNING)
         # get mirror data
         mirror_df = self.fetch_dataset_mirror(args)
-        if len(res_df) != len(mirror_df):
-            print_rank0(f"Sample nums not same: {len(res_df)} != {len(mirror_df)}", level=logging.WARNING)
+        if self.mode == "test":
+            assert len(res_df) == len(mirror_df), f"Sample nums not same in test: {len(res_df)} != {len(mirror_df)}"
         res_df = res_df.merge(mirror_df, on="question_id", how="inner")
         if self.mode == "test" and hasattr(args, "save_details_results") and args.save_details_results:
             res_df.to_csv(args.save_details_result_path, index=None)
