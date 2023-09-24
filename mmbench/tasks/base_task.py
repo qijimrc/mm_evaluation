@@ -331,11 +331,11 @@ class BaseTask(object):
                 test_args.strict_eval = False
                 print_rank0(f'Due to strict_eval and iterable_dataset, resize eval_iters: \
                     {test_args.eval_iters}', level=logging.WARNING)
-            # debug
-            test_args.strict_eval = False
-            test_args.eval_iters = 200
-            test_args.eval_interval = 1
-            # debug
+            # for debug only
+            if hasattr(args, "use_debug_mode") and args.use_debug_mode:
+                test_args.strict_eval = False
+                test_args.eval_iters = 200
+                test_args.eval_interval = 1
             test_args.load = test_args.save if self.need_finetune else None
             _, metrics = testing_main(test_args,
                                         model=mt.model,
