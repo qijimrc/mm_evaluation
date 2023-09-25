@@ -334,7 +334,7 @@ class BaseTask(object):
                     {test_args.eval_iters}', level=logging.WARNING)
             # debug
             # test_args.strict_eval = False
-            # test_args.eval_iters = 200
+            # test_args.eval_iters = 100
             # test_args.eval_interval = 1
             # debug
             test_args.load = test_args.save if self.need_finetune else None

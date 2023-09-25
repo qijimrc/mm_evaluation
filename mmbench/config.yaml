@@ -46,7 +46,7 @@ tasks:
         train_data: processed/Visual7W/train###train
         valid_data: processed/Visual7W/val###val
         test_data: processed/Visual7W/test###test
-      need_finetune: true
+      need_finetune: false
       need_evaluate: true
       data_params:
         max_source_length: 1625
@@ -474,7 +474,7 @@ tasks:
       data:
         train_data: processed/OK-VQA/train###train
         test_data: processed/OK-VQA/val###test
-      need_finetune: false
+      need_finetune: true
       need_evaluate: true
       data_params:
         max_source_length: 1625
@@ -485,7 +485,7 @@ tasks:
         no_prompt: true
       finetune_params:
         log_interval: 20
-        train_iters: 2000
+        train_iters: 20000
         resume_dataloader: true
         lr_decay_style: cosine
         warmup: 0.02
