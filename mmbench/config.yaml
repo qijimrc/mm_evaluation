@@ -271,7 +271,7 @@ tasks:
     STVQA:
       data:
         train_data: processed/STVQA/train###train
-        upload_data: [processed/STVQA/test_task_1,processed/STVQA/test_task_2,processed/STVQA/test_task_3]
+        upload_data: [processed/STVQA/test_task_3]
       need_finetune: false
       need_evaluate: true
       data_params:
@@ -357,7 +357,7 @@ tasks:
     RefCOCO:
       data:
         train_data: processed/RefCOCO/train###train
-        valid_data: processed/refcoco-val/val###val
+        valid_data: processed/RefCOCO/refcoco-val###val
         test_data: processed/RefCOCO/test###test
       need_finetune: false
       need_evaluate: true
