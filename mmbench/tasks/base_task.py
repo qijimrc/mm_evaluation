@@ -99,7 +99,7 @@ class BaseTask(object):
         question_ids, preds = results_total["question_ids"], results_total["preds"]
         res_df = pd.DataFrame({"question_id": question_ids, "preds": preds}, dtype=str)
         # post process
-        res_df = res_df[res_df["question_ids"] != "-1"]
+        res_df = res_df[res_df["question_id"] != "-1"]
         res_df["preds"] = res_df["preds"].apply(lambda x: x.replace(PAD_STR, ""))
         if self.mode == "upload":
             self.handle_upload_data(args, res_df)
