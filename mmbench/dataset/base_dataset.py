@@ -67,7 +67,7 @@ class BaseDataset(object):
             for item in choices:
                 prompt += f'{start_op}: {item}\n'
                 start_op = chr(ord(start_op) + 1)
-            prompt += "回答: " if language_zh else "Answer: "
+            prompt += "回答: " if language_zh else "Answer:"
             return prompt
         prompt = generate_prompt_in_multi_choice(metadata["choices"], metadata["question"])
         answer = chr(ord('A')+metadata["answer"]) if isinstance(metadata["answer"], int) else metadata["answer"]
