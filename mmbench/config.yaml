@@ -527,9 +527,9 @@ tasks:
         top_p: 0.4
         temperature: 0.8
       
-    TouchDataset:
+    TouchStone:
       data:
-        test_data: processed/TouchDataset/test###test
+        test_data: processed/TouchStone/test###test
       need_finetune: false
       need_evaluate: true
       data_params:

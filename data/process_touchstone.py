@@ -8,12 +8,12 @@ from collections import Counter
 
 from utils import get_image_bytes, save_data
 
-DATASET_NAWE = "TouchDataset"
+DATASET_NAWE = "TouchStone"
 
 def process_data(root_dir, mode):
-    filename = os.path.join(root_dir, f"raw/TouchDataset/ts_sample.tsv")
-    img_dir = os.path.join(root_dir, f"raw/TouchDataset/ts_images")
-    save_dir = os.path.join(root_dir, f"processed/TouchDataset/{mode}")
+    filename = os.path.join(root_dir, f"raw/TouchStone/ts_sample.tsv")
+    img_dir = os.path.join(root_dir, f"raw/TouchStone/ts_images")
+    save_dir = os.path.join(root_dir, f"processed/TouchStone/{mode}")
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     data = pd.read_csv(filename, sep="\t")
