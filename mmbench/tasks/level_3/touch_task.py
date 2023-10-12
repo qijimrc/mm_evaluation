@@ -11,8 +11,9 @@ class TouchStoneTask(BaseTask):
         super().__init__(task_cfg, **kw_args)
     
     def calc_scores(self, args, result_df) -> Dict:
-        # compute scores
-        result_df = result_df.rename({"preds": "response"}, axis=1)
         result_df.to_csv(args.save_details_result_path, index=None)
-        return {}
+        # compute scores
+        metric_cls = Registry.get_metric_class('llm_score')
+        scores = metric_cls(args).calc_scores(result_df)
+        return scores
         
