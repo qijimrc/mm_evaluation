@@ -17,7 +17,7 @@ class BaseDataset(object):
         self.img_pad = os.path.join(os.path.dirname(__file__), "assets/no_img.png")
         with open(os.path.join(os.path.dirname(__file__), "assets/templates_en.json"), "r") as fp:
             self.templates_en = json.load(fp)
-        with open(os.path.join(os.path.dirname(__file__), "assets/templates_zh.json"), "r") as fp:
+        with open(os.path.join(os.path.dirname(__file__), "assets/templates_zh.json"), "r", encoding='utf-8') as fp:
             self.templates_zh = json.load(fp)
     
     def custom_func(func):
@@ -67,7 +67,7 @@ class BaseDataset(object):
             for item in choices:
                 prompt += f'{start_op}: {item}\n'
                 start_op = chr(ord(start_op) + 1)
-            prompt += "回答: " if language_zh else "Answer: "
+            prompt += "回答: " if language_zh else "Answer:"
             return prompt
         prompt = generate_prompt_in_multi_choice(metadata["choices"], metadata["question"])
         answer = chr(ord('A')+metadata["answer"]) if isinstance(metadata["answer"], int) else metadata["answer"]
