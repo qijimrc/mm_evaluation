@@ -111,7 +111,7 @@ class BaseTask(object):
             print_rank0(f"Sample nums change after removing duplicates: {before_res_len} -> {len(res_df)}", level=logging.WARNING)
         # get mirror data
         mirror_df = self.fetch_dataset_mirror(args)
-        if self.mode == "test":
+        if self.mode == "test" and not args.use_debug_mode:
             assert len(res_df) == len(mirror_df), f"Sample nums not same in test: {len(res_df)} != {len(mirror_df)}"
         res_df = res_df.merge(mirror_df, on="question_id", how="inner")
         if self.mode == "test" and hasattr(args, "save_details_results") and args.save_details_results:
@@ -261,7 +261,7 @@ class BaseTask(object):
         strategy = BaseStrategy(temperature=args.temperature, top_p=args.top_p, top_k=args.top_k, end_tokens=[mt.tokenizer.eos_token_id])
         # strategy = BeamSearchStrategy(temperature=temperature, top_p=top_p, top_k=top_k, end_tokens=[tokenizer.eos_token_id],
         #                               num_beams=num_beams, consider_end=True)
-        get_func = mt.text_processor_inference.get_func(None, image_rope_mask=kwargs['image_rope_mask'])
+        get_func = mt.text_processor_inference.get_func(None, **kwargs)
         output = filling_sequence(
             mt.model, seq,
             batch_size=1,
@@ -285,9 +285,7 @@ class BaseTask(object):
         question_id = data_b.pop('question_id')[0]
         labels = data_b.pop('labels')
         
-        model.add_mixin('auto-regressive', CachedAutoregressiveMixin())
         outputs = self.chat(tokens, mt, args, **data_b)[0][context_len:]
-        model.del_mixin('auto-regressive')
 
         outputs = outputs.unsqueeze(0)
         pred = mt.tokenizer.batch_decode(outputs, skip_special_tokens=True)[0].strip()
@@ -321,7 +319,8 @@ class BaseTask(object):
         self.mode = "test"
         test_args.mode = "inference"
         test_args.do_test = True
-
+        
+        mt.model.add_mixin('auto-regressive', CachedAutoregressiveMixin())
         # handle test data
         if hasattr(test_args, 'test_data') and test_args.test_data is not None:
             test_args.strict_eval = True
@@ -334,7 +333,7 @@ class BaseTask(object):
             # for debug only
             if hasattr(args, "use_debug_mode") and args.use_debug_mode:
                 test_args.strict_eval = False
-                test_args.eval_iters = 200
+                test_args.eval_iters = 20
                 test_args.eval_interval = 1
             test_args.load = test_args.save if self.need_finetune else None
             _, metrics = testing_main(test_args,

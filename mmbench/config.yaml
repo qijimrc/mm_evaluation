@@ -1,6 +1,6 @@
 # Configure the task for evaluation
 
-server_addr: ningxia
+server_addr: wulan
 
 home_env:
   ningxia:
@@ -466,7 +466,37 @@ tasks:
         top_k: 1
         top_p: 0.4
         temperature: 0.8
-    
+  
+    Category:
+      data:
+        train_data: /mnt/shared/img_datasets/category3_instructions/train###train
+        test_data: /mnt/shared/img_datasets/category3_instructions/test###test
+      need_finetune: false
+      need_evaluate: true
+      data_params:
+        max_source_length: 512
+        max_target_length: 128
+        iterable_dataset: false
+        train_data_load_mode: epoch_round
+        block_size: 500
+        no_prompt: true
+      finetune_params:
+        log_interval: 20
+        train_iters: 2000
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 500
+        split: "1"
+      eval_params:
+        log_interval: 5
+        eval_iters: 100
+        eval_interval: 500
+        eval_batch_size: 1
+        top_k: 1
+        top_p: 0.4
+        temperature: 0.8
+
   level_2:
     OKVQA:
       data:
