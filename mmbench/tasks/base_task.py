@@ -111,11 +111,12 @@ class BaseTask(object):
             print_rank0(f"Sample nums change after removing duplicates: {before_res_len} -> {len(res_df)}", level=logging.WARNING)
         # get mirror data
         mirror_df = self.fetch_dataset_mirror(args)
-        if self.mode == "test":
+        if self.mode == "test" and not args.use_debug_mode:
             assert len(res_df) == len(mirror_df), f"Sample nums not same in test: {len(res_df)} != {len(mirror_df)}"
         res_df = res_df.merge(mirror_df, on="question_id", how="inner")
         if self.mode == "test" and hasattr(args, "save_details_results") and args.save_details_results:
             res_df.to_csv(args.save_details_result_path, index=None)
+            print_rank0(f"Save detail results in {args.save_details_result_path}...")
         return self.calc_scores(args, res_df)
 
     def create_dataset_function(self, mt, path, args):
@@ -258,10 +259,17 @@ class BaseTask(object):
         seq = torch.cat(
             [inputs, torch.tensor([-1] * (self.max_source_length + self.max_target_length - len(inputs)), device=inputs.device)], dim=0
         )
-        strategy = BaseStrategy(temperature=args.temperature, top_p=args.top_p, top_k=args.top_k, end_tokens=[mt.tokenizer.eos_token_id])
-        # strategy = BeamSearchStrategy(temperature=temperature, top_p=top_p, top_k=top_k, end_tokens=[tokenizer.eos_token_id],
-        #                               num_beams=num_beams, consider_end=True)
-        get_func = mt.text_processor_inference.get_func(None, image_rope_mask=kwargs['image_rope_mask'])
+        strategy = BeamSearchStrategy(
+            temperature=args.temperature,
+            top_p=args.top_p,
+            top_k=args.top_k,
+            end_tokens=[mt.tokenizer.eos_token_id],
+            num_beams=args.num_beams,
+            consider_end=True,
+            repetition_penalty=args.repetition_penalty
+        )
+        # strategy = BaseStrategy(temperature=args.temperature, top_p=args.top_p, top_k=args.top_k, end_tokens=[mt.tokenizer.eos_token_id])
+        get_func = mt.text_processor_inference.get_func(None, **kwargs)
         output = filling_sequence(
             mt.model, seq,
             batch_size=1,
@@ -285,9 +293,7 @@ class BaseTask(object):
         question_id = data_b.pop('question_id')[0]
         labels = data_b.pop('labels')
         
-        model.add_mixin('auto-regressive', CachedAutoregressiveMixin())
         outputs = self.chat(tokens, mt, args, **data_b)[0][context_len:]
-        model.del_mixin('auto-regressive')
 
         outputs = outputs.unsqueeze(0)
         pred = mt.tokenizer.batch_decode(outputs, skip_special_tokens=True)[0].strip()
@@ -303,6 +309,7 @@ class BaseTask(object):
         # train
         self.mode = "finetune"
         finetune_args.mode = "finetune"
+        print_rank0(f"Final training args: {finetune_args}")
         training_main(finetune_args,
                       model_cls=mt.model,
                       forward_step_function=self.forward_step,
@@ -322,6 +329,7 @@ class BaseTask(object):
         test_args.mode = "inference"
         test_args.do_test = True
 
+        mt.model.add_mixin('auto-regressive', CachedAutoregressiveMixin())
         # handle test data
         if hasattr(test_args, 'test_data') and test_args.test_data is not None:
             test_args.strict_eval = True
@@ -334,7 +342,7 @@ class BaseTask(object):
             # for debug only
             if hasattr(args, "use_debug_mode") and args.use_debug_mode:
                 test_args.strict_eval = False
-                test_args.eval_iters = 200
+                test_args.eval_iters = 50
                 test_args.eval_interval = 1
             test_args.load = test_args.save if self.need_finetune else None
             _, metrics = testing_main(test_args,
@@ -360,6 +368,7 @@ class BaseTask(object):
                     print_rank0(f'Due to strict_eval and iterable_dataset, resize eval_iters: \
                         {test_args.eval_iters}', level=logging.WARNING)
                 # start
+                print_rank0(f"Final test args: {test_args}")
                 testing_main(test_args,
                             model=mt.model,
                             forward_step_eval=self.partial_wo(self.forward_step_eval, mt),
@@ -367,4 +376,5 @@ class BaseTask(object):
                             handle_metrics_function=self.partial_wo(self.handle_metrics, test_args),
                             collate_fn=self.partial_wo(self.collate_fn, mt))
                 print_rank0(f"End {upload_data}...")
+        mt.model.del_mixin('auto-regressive')
         return metrics

@@ -14,11 +14,22 @@ from mmbench.common.registry import Registry
 from mmbench.metrics.base_metric import BaseMetric
 from mmbench.metrics.llm_score.chat_api import ChatAPI
 
-prompt_dic = {"system_prompt": "You are a helpful and precise assistant for checking the quality of the answer.",
+prompt_dic_en = {"system_prompt": "You are a helpful and precise assistant for checking the quality of the answer.",
               "prompt_template": "[Detailed Image Description]\n{human_annotation}\n\n[Question]\n{question}\n\n[The Start of Assistant 1's Answer]\n{answer_1}\n\n[The End of Assistant 1's Answer]\n\n[The Start of Assistant 2's Answer]\n{answer_2}\n\n[The End of Assistant 2's Answer]\n\n[System]\n{prompt}\n\n",
               "defaults": {
                   "prompt": "We would like to request your feedback on the performance of two AI assistants in response to the user question and image description displayed above. AI assistants are provided with detailed image description and questions.\nPlease rate the helpfulness, relevance, accuracy, comprehensiveness of their responses. Each assistant receives an overall score on a scale of 1 to 10, where a higher score indicates better overall performance.\nPlease output a single line containing only two values indicating the scores for Assistant 1 and 2, respectively. The two scores are separated by a space."},
               "description": "Prompt for general questions", "category": "general"}
+
+prompt_dic_zh = {"system_prompt": "你是一个帮助检查答案质量的有用而准确的助手。",
+              "prompt_template": "[Detailed Image Description]\n{human_annotation}\n\n[Question]\n{question}\n\n[The Start of Assistant 1's Answer]\n{answer_1}\n\n[The End of Assistant 1's Answer]\n\n[The Start of Assistant 2's Answer]\n{answer_2}\n\n[The End of Assistant 2's Answer]\n\n[System]\n{prompt}\n\n",
+              "defaults": {
+                  "prompt": "我们希望请您就上述用户问题和图像描述的两位AI助手的表现提供反馈。AI助手们已被提供详细的图像描述和问题。\n请您评价他们的回答在帮助性、相关性、准确性和全面性方面的表现。每位助手将在1到10的评分尺度上获得综合得分，其中较高的分数表示整体表现更好。\n请输出一行文本，其中只包含两个数值，分别表示助手1和助手2的分数。这两个分数之间用一个空格隔开。"},
+              "description": "Prompt for general questions", "category": "general"}
+
+prompt_dic = {
+    "english": prompt_dic_en,
+    "chinese": prompt_dic_zh
+}
 
 @Registry.register_metric('llm_score')
 class LLMScore(BaseMetric):
@@ -36,7 +47,7 @@ class LLMScore(BaseMetric):
         score1, score2 = float(score1), float(score2)
         return score1, score2, "ok"
 
-    def evaluate(self, query):
+    def evaluate(self, query, language):
         """
         Evaluate the response using the GPT-4 model.
         Args:
@@ -52,7 +63,7 @@ class LLMScore(BaseMetric):
         for i in range(self.MAX_API_RETRY):
             try:
                 # Make API call to the Chat Completion API
-                prompt = f'{prompt_dic["system_prompt"]}\n{query}'
+                prompt = f'{prompt_dic[language]["system_prompt"]}\n{query}'
                 status, content = self.chatapi.get_response(api_server=self.server_name, prompt=prompt)
                 if status != "SUCCESS":
                     continue
@@ -64,11 +75,11 @@ class LLMScore(BaseMetric):
                     print_rank0(f"error in reply: {reply}")
                     return 0, 0, "error"
             except Exception as e:
-                print_rank0(f"error in content: {content}")
+                print_rank0(f"error in content")
                 return 0, 0, "error"
         return 0, 0, "error"
     
-    def process(self, single_data, name="TestModel"):
+    def process(self, single_data, language, name="TestModel"):
         # Load data from file
         row = single_data
         # Process each answer
@@ -82,15 +93,15 @@ class LLMScore(BaseMetric):
             ans2 = ans2[0]
             
         # Create prompt using the provided template
-        prompt = prompt_dic["defaults"]["prompt"]
-        query1 = prompt_dic["prompt_template"].format(human_annotation=human_annotation, question=ques, answer_1=ans1,
+        prompt = prompt_dic[language]["defaults"]["prompt"]
+        query1 = prompt_dic[language]["prompt_template"].format(human_annotation=human_annotation, question=ques, answer_1=ans1,
                                                     answer_2=ans2, prompt=prompt)
-        query2 = prompt_dic["prompt_template"].format(human_annotation=human_annotation, question=ques, answer_1=ans2,
+        query2 = prompt_dic[language]["prompt_template"].format(human_annotation=human_annotation, question=ques, answer_1=ans2,
                                                     answer_2=ans1, prompt=prompt)
         
         # Evaluate the answer with position balancing
-        round1_score1, round1_score2, round1_reason = self.evaluate(query1)
-        round2_score1, round2_score2, round2_reason = self.evaluate(query2)
+        round1_score1, round1_score2, round1_reason = self.evaluate(query1, language)
+        round2_score1, round2_score2, round2_reason = self.evaluate(query2, language)
         
         # Create a dictionary to store the results
         results = [{
@@ -119,13 +130,13 @@ class LLMScore(BaseMetric):
         }]
         return results
 
-    def multiple_process(self, data_df):
+    def multiple_process(self, data_df, language):
         results = []
         max_threads = min(os.cpu_count(), max(1, self.max_thread_nums), len(data_df))
         print_rank0(f'Using {max_threads} threads...')
         try:
             with ThreadPoolExecutor(max_workers=max_threads) as executor:
-                futures = {executor.submit(self.process, (data)): data for idx, data in data_df.iterrows()}
+                futures = {executor.submit(self.process, *(data, language)): data for idx, data in data_df.iterrows()}
                 with tqdm(total=len(data_df)) as progress_bar:
                     for future in as_completed(futures):
                         try:
@@ -138,9 +149,9 @@ class LLMScore(BaseMetric):
             print_rank0(f'Process: {e}')
         return results
 
-    def calc_scores(self, results_df) -> Dict:
+    def calc_scores(self, results_df, language="english") -> Dict:
         # get chat model responses
-        results = self.multiple_process(results_df) 
+        results = self.multiple_process(results_df, language) 
         # Dictionary to store scores for each model
         scores = {}
         # Dictionary to store scores categorized by category and model
@@ -208,12 +219,12 @@ if __name__ == "__main__":
     import argparse
     def parse_args():
         parser = argparse.ArgumentParser(description="TouchStone evaluation.")
-        parser.add_argument("--max_thread_nums", type=int, default=8, help="submitted tsv file")
+        parser.add_argument("--max_thread_nums", type=int, default=1, help="submitted tsv file")
         args = parser.parse_args()
         return args
     args = parse_args()
     
     llm_score = LLMScore(args)
     df = pd.read_csv("/mnt/shared/img_datasets/mmbench_datasets/raw/TouchStone/CogVLM.csv")
-    score = llm_score.calc_scores(df)
+    score = llm_score.calc_scores(df, "english")
     print(score)

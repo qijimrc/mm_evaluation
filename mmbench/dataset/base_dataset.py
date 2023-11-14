@@ -17,7 +17,7 @@ class BaseDataset(object):
         self.img_pad = os.path.join(os.path.dirname(__file__), "assets/no_img.png")
         with open(os.path.join(os.path.dirname(__file__), "assets/templates_en.json"), "r") as fp:
             self.templates_en = json.load(fp)
-        with open(os.path.join(os.path.dirname(__file__), "assets/templates_zh.json"), "r") as fp:
+        with open(os.path.join(os.path.dirname(__file__), "assets/templates_zh.json"), "r", encoding='utf-8') as fp:
             self.templates_zh = json.load(fp)
     
     def custom_func(func):

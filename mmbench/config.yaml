@@ -1,6 +1,6 @@
 # Configure the task for evaluation
 
-server_addr: zhongwei
+server_addr: wulan
 
 home_env:
   ningxia:
@@ -12,6 +12,33 @@ home_env:
 
 tasks:
   level_1:
+    Infer:
+      data:
+        test_data: processed/batch_model###test
+      need_finetune: false
+      need_evaluate: true
+      data_params:
+        max_source_length: 256
+        max_target_length: 128
+        iterable_dataset: false
+        train_data_load_mode: epoch_round
+        block_size: 2000
+      finetune_params:
+        log_interval: 20
+        train_iters: 2000
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 500
+        split: "1"
+      eval_params:
+        eval_iters: 100
+        eval_interval: 500
+        eval_batch_size: 1
+        top_k: 1
+        top_p: 0.4
+        temperature: 0.8
+
     ScienceQA:
       data:
         train_data: processed/ScienceQA/train###train
@@ -553,4 +580,59 @@ tasks:
         top_k: 1
         top_p: 0.4
         temperature: 0.8
-      
+    
+    TouchStoneChinese:
+      data:
+        test_data: processed/TouchStone/test-zh###test
+      need_finetune: false
+      need_evaluate: true
+      data_params:
+        max_source_length: 256
+        max_target_length: 128
+        iterable_dataset: false
+        train_data_load_mode: epoch_round
+        block_size: 500
+      finetune_params:
+        log_interval: 20
+        train_iters: 2000
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 500
+        split: "1"
+      eval_params:
+        eval_iters: 100
+        eval_interval: 500
+        eval_batch_size: 1
+        top_k: 1
+        top_p: 0.4
+        temperature: 0.8
+    
+    AlignMMBench:
+      data:
+        train_data: processed/AlignMMBench/train###train
+        valid_data: processed/AlignMMBench/valid###valid
+        test_data: processed/TouchStone/test###test
+      need_finetune: false
+      need_evaluate: true
+      data_params:
+        max_source_length: 1024
+        max_target_length: 512
+        iterable_dataset: false
+        train_data_load_mode: epoch_round
+        block_size: 500
+      finetune_params:
+        log_interval: 20
+        train_iters: 1000
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 50
+        split: "1"
+      eval_params:
+        strict_eval: true
+        eval_interval: 50
+        eval_batch_size: 1
+        top_k: 1
+        top_p: 0.4
+        temperature: 0.8
