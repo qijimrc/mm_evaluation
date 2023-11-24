@@ -4,7 +4,7 @@ import random
 
 from utils import save_data
 
-DATASET_NAWE = "CWB_caption2box"
+DATASET_NAWE = "CWB_box2caption"
 
 def extract_nouns(origin_txt):
     # 存放匹配到的位置
@@ -42,8 +42,6 @@ def process_data(root_dir, mode):
                 print(f"not found: {image_path}")
                 drop_num += 1
                 continue
-            if image_path not in all_results:
-                all_results[image_path] = []
             nouns = extract_nouns(c_data['sentence'])
             for i, (noun, seq) in enumerate(zip(nouns, c_data['boxes_seq'])):
                 th_data = {
@@ -58,6 +56,8 @@ def process_data(root_dir, mode):
                         "question_type": "box2caption"
                     }
                 }
+                if image_path not in all_results:
+                    all_results[image_path] = []
                 all_results[image_path].append(th_data)
                 item_num += 1
     # save tarfiles
