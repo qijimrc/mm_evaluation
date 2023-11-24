@@ -1,12 +1,14 @@
 # Configure the task for evaluation
 
-server_addr: ningxia
+server_addr: zhongwei
 
 home_env:
   ningxia:
     data_home: /nxchinamobile2/shared/mmbench_datasets
   wulan:
     data_home: /mnt/shared/img_datasets/mmbench_datasets
+  zhongwei:
+    data_home: /share/img_datasets/mmbench_datasets
 
 tasks:
   level_1:
