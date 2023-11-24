@@ -16,7 +16,7 @@ class Visual7WTask(BaseTask):
         metric_cls = Registry.get_metric_class('acc')
         # 0~3 -> A ~ D
         results_df["answer"] = results_df["answer"].apply(lambda x: chr(ord('A') + int(x)))
-        metrics_scores["Avg"] = metric_cls.calc_scores(results_df["answer"], results_df["preds"])
+        metrics_scores["Avg"] = metric_cls.calc_scores(results_df["answer"], results_df["preds"].apply(lambda x: x[0])) # Correct only if pred[0] is right.
         for etype in results_df["type"].unique().tolist():
             c_df = results_df[results_df["type"] == etype].drop_duplicates(subset=["question_id"])
             metrics_scores[etype] = metric_cls.calc_scores(c_df["answer"], c_df["preds"])
