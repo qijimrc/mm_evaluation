@@ -612,7 +612,7 @@ tasks:
       data:
         train_data: processed/AlignMMBench/train###train
         valid_data: processed/AlignMMBench/valid###valid
-        test_data: processed/TouchStone/test###test
+        test_data: processed/AlignMMBench/test###test
       need_finetune: false
       need_evaluate: true
       data_params:
