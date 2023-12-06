@@ -55,7 +55,7 @@ class ItemDataset(Dataset, BaseDataset):
         except Exception as e:
             print_all(e, level=logging.WARNING)
             return {}
-        img_dict = self.process_img(img)
+        img_dict = {} if self.args.pad_image_mode == "null" else self.process_img(img)
         # text
         dialogues = data['json']
         assert len(dialogues) >= 1, f"json length <= 1 in {data}"

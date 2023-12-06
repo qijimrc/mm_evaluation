@@ -498,8 +498,8 @@ tasks:
   
     Category:
       data:
-        train_data: /mnt/shared/img_datasets/category3_instructions/train###train
-        test_data: /mnt/shared/img_datasets/category3_instructions/test###test
+        train_data: /mnt/shared/img_datasets/category_instructions/train###train
+        test_data: /mnt/shared/img_datasets/category_instructions/test###test
       need_finetune: false
       need_evaluate: true
       data_params:

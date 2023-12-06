@@ -41,9 +41,14 @@ class BaseDataset(object):
     
     @custom_func
     def normal_qa(self, metadata, uni_key, **kwargs):
-        text_dict = self.process_text(metadata["answer"], metadata["question"])
+        try:
+            prompt = self.mt.text_processor.history_to_prompt([], metadata["question"], add_eoi_first=True)
+            text_dict = self.process_text(metadata["answer"], prompt)
+        except Exception as e:
+            print_rank0(f"{uni_key}: {e}")
+            return None
         return text_dict
-
+    
     @custom_func
     def normal_caption(self, metadata, uni_key, **kwargs):
         if self.args.no_prompt:

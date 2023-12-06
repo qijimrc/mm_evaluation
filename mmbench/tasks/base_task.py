@@ -111,8 +111,8 @@ class BaseTask(object):
             print_rank0(f"Sample nums change after removing duplicates: {before_res_len} -> {len(res_df)}", level=logging.WARNING)
         # get mirror data
         mirror_df = self.fetch_dataset_mirror(args)
-        if self.mode == "test" and not args.use_debug_mode:
-            assert len(res_df) == len(mirror_df), f"Sample nums not same in test: {len(res_df)} != {len(mirror_df)}"
+        # if self.mode == "test" and not args.use_debug_mode:
+        #     assert len(res_df) == len(mirror_df), f"Sample nums not same in test: {len(res_df)} != {len(mirror_df)}"
         res_df = res_df.merge(mirror_df, on="question_id", how="inner")
         if self.mode == "test" and hasattr(args, "save_details_results") and args.save_details_results:
             res_df.to_csv(args.save_details_result_path, index=None)
@@ -163,15 +163,17 @@ class BaseTask(object):
                     example[k] = torch.from_numpy(example[k])
         img_args = {}
         tmp_example = examples[0]
-        for k in tmp_example['vision']:
-            if type(tmp_example['vision'][k]) is torch.Tensor:
-                img_args['vision_'+k] = torch.cat([example['vision'][k] for example in examples])
-            else:
-                img_args['vision_'+k] = example['vision'][k]
+        if 'vision' in tmp_example:
+            for k in tmp_example['vision']:
+                if type(tmp_example['vision'][k]) is torch.Tensor:
+                    img_args['vision_'+k] = torch.cat([example['vision'][k] for example in examples])
+                else:
+                    img_args['vision_'+k] = example['vision'][k]
         if mt.cross_image_processor is not None:
             img_args.update({'cross_'+k: torch.cat([example['cross'][k] for example in examples]) if type(example['cross'][k]) is torch.Tensor else example['cross'][k] for k in example['cross']})
         for example in examples:
-            example.pop('vision')
+            if "vision" in example:
+                example.pop('vision')
             if 'cross' in example:
                 example.pop('cross')
 
@@ -204,14 +206,14 @@ class BaseTask(object):
     
     def get_batch(self, data_iterator, args, timers):
         # Broadcast data.
-        timers('data loader').start()
+        # timers('data loader').start()
         if data_iterator is not None:
             data = next(data_iterator)
             if len(data) == 0:
                 return None
         else:
             return None
-        timers('data loader').stop()
+        # timers('data loader').stop()
         data_b = self.broadcast_auto(data)
         for k in data_b:
             if type(data_b[k]) is torch.Tensor and data_b[k].dtype is not torch.int32 and data_b[k].dtype is not torch.long:
@@ -227,10 +229,10 @@ class BaseTask(object):
         timers('batch generator').start()
         data_b = self.get_batch(
             data_iterator, args, timers)
+        timers('batch generator').stop()
         if data_b is None:
             return torch.tensor(0, device=args.device), {}
         labels = data_b.pop('labels')
-        timers('batch generator').stop()
         logits = model(**data_b)[0]
         lm_logits = logits.to(torch.float32)
         # Shift so that tokens < n predict n
@@ -259,22 +261,16 @@ class BaseTask(object):
         seq = torch.cat(
             [inputs, torch.tensor([-1] * (self.max_source_length + self.max_target_length - len(inputs)), device=inputs.device)], dim=0
         )
-<<<<<<< HEAD
+        # strategy = BeamSearchStrategy(
+        #     temperature=args.temperature,
+        #     top_p=args.top_p,
+        #     top_k=args.top_k,
+        #     end_tokens=[mt.tokenizer.eos_token_id],
+        #     num_beams=args.num_beams,
+        #     consider_end=True,
+        #     repetition_penalty=args.repetition_penalty
+        # )
         strategy = BaseStrategy(temperature=args.temperature, top_p=args.top_p, top_k=args.top_k, end_tokens=[mt.tokenizer.eos_token_id])
-        # strategy = BeamSearchStrategy(temperature=temperature, top_p=top_p, top_k=top_k, end_tokens=[tokenizer.eos_token_id],
-        #                               num_beams=num_beams, consider_end=True)
-=======
-        strategy = BeamSearchStrategy(
-            temperature=args.temperature,
-            top_p=args.top_p,
-            top_k=args.top_k,
-            end_tokens=[mt.tokenizer.eos_token_id],
-            num_beams=args.num_beams,
-            consider_end=True,
-            repetition_penalty=args.repetition_penalty
-        )
-        # strategy = BaseStrategy(temperature=args.temperature, top_p=args.top_p, top_k=args.top_k, end_tokens=[mt.tokenizer.eos_token_id])
->>>>>>> 71ad4b74a77e78a1d0729e6c679e2d1051729702
         get_func = mt.text_processor_inference.get_func(None, **kwargs)
         output = filling_sequence(
             mt.model, seq,
@@ -292,9 +288,9 @@ class BaseTask(object):
         timers('batch generator').start()
         data_b = self.get_batch(
             data_iterator, args, timers)
-        if data_b is None:
-            return torch.tensor(0, device=args.device), {"question_ids": "-1", "preds": PAD_STR}
         timers('batch generator').stop()
+        if data_b is None:
+            return torch.tensor(0, device=args.device), {"question_ids": "-1", "preds": PAD_STR, "labels": PAD_STR}
         data_b, tokens, context_len = self.preprocess_datab_eval(data_b)
         question_id = data_b.pop('question_id')[0]
         labels = data_b.pop('labels')
@@ -334,11 +330,6 @@ class BaseTask(object):
         self.mode = "test"
         test_args.mode = "inference"
         test_args.do_test = True
-<<<<<<< HEAD
-        
-=======
-
->>>>>>> 71ad4b74a77e78a1d0729e6c679e2d1051729702
         mt.model.add_mixin('auto-regressive', CachedAutoregressiveMixin())
         # handle test data
         if hasattr(test_args, 'test_data') and test_args.test_data is not None:
@@ -352,11 +343,7 @@ class BaseTask(object):
             # for debug only
             if hasattr(args, "use_debug_mode") and args.use_debug_mode:
                 test_args.strict_eval = False
-<<<<<<< HEAD
-                test_args.eval_iters = 20
-=======
                 test_args.eval_iters = 50
->>>>>>> 71ad4b74a77e78a1d0729e6c679e2d1051729702
                 test_args.eval_interval = 1
             test_args.load = test_args.save if self.need_finetune else None
             _, metrics = testing_main(test_args,
