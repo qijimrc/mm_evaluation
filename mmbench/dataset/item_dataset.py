@@ -55,7 +55,6 @@ class ItemDataset(Dataset, BaseDataset):
         except Exception as e:
             print_all(e, level=logging.WARNING)
             return {}
-        img_dict = self.process_img(img)
         # text
         dialogues = data['json']
         assert len(dialogues) >= 1, f"json length <= 1 in {data}"
@@ -71,10 +70,11 @@ class ItemDataset(Dataset, BaseDataset):
             else:
                 raise ValueError("Unknown train_data_load_mode: {}, support random / epoch_round".format(self.args.train_data_load_mode))
         uni_key = f'{dialogues["question_id"]}'
-        text_dict = eval(f'self.{dialogues["datatype"]}')(dialogues["metadata"], uni_key, img=img)
-        if text_dict == None:
-            print_all(f"Process text failed. Please check the max_target_length & max_source_length.\n The data is {dialogues['metadata']}", level=logging.WARNING)
+        text_dict, img = eval(f'self.{dialogues["datatype"]}')(dialogues["metadata"], uni_key, img=img)
+        if text_dict == None or len(text_dict) == 0:
+            print_all(f"Process text failed. Please check the max_target_length & max_source_length.\n The data is {uni_key}", level=logging.WARNING)
             return {}
+        img_dict = self.process_img(img)
         # other attr
         ret = {**img_dict, **text_dict, "question_id": str(dialogues["question_id"])}
         for attr in self.other_attr:

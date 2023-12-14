@@ -34,7 +34,7 @@ class BaseTask(object):
         self.need_finetune = task_cfg.get('need_finetune', False)
         self.need_evaluate = task_cfg.get('need_evaluate', False)
         self.max_source_length = task_cfg["data_params"].get("max_source_length", 256) + image_length
-        self.max_target_length = task_cfg["data_params"].get("max_target_length", 128) + image_length
+        self.max_target_length = task_cfg["data_params"].get("max_target_length", 128)
         self.no_prompt = task_cfg["data_params"].get("no_prompt", False)
 
         self.custom_functions = custom_functions
@@ -146,7 +146,10 @@ class BaseTask(object):
                     value = [value]
                 merge_args[key] = []
                 for p in value:
-                    tmp_path = os.path.join(args.data_home_dir, p)
+                    if os.path.exists(p):
+                        tmp_path = p
+                    else:
+                        tmp_path = os.path.join(args.data_home_dir, p)
                     merge_args[key].append(tmp_path)
         return argparse.Namespace(**merge_args)
     
@@ -208,8 +211,10 @@ class BaseTask(object):
         if data_iterator is not None:
             data = next(data_iterator)
             if len(data) == 0:
+                timers('data loader').stop()
                 return None
         else:
+            timers('data loader').stop()
             return None
         timers('data loader').stop()
         data_b = self.broadcast_auto(data)
@@ -227,10 +232,10 @@ class BaseTask(object):
         timers('batch generator').start()
         data_b = self.get_batch(
             data_iterator, args, timers)
+        timers('batch generator').stop()
         if data_b is None:
             return torch.tensor(0, device=args.device), {}
         labels = data_b.pop('labels')
-        timers('batch generator').stop()
         logits = model(**data_b)[0]
         lm_logits = logits.to(torch.float32)
         # Shift so that tokens < n predict n
@@ -259,16 +264,16 @@ class BaseTask(object):
         seq = torch.cat(
             [inputs, torch.tensor([-1] * (self.max_source_length + self.max_target_length - len(inputs)), device=inputs.device)], dim=0
         )
-        strategy = BeamSearchStrategy(
-            temperature=args.temperature,
-            top_p=args.top_p,
-            top_k=args.top_k,
-            end_tokens=[mt.tokenizer.eos_token_id],
-            num_beams=args.num_beams,
-            consider_end=True,
-            repetition_penalty=args.repetition_penalty
-        )
-        # strategy = BaseStrategy(temperature=args.temperature, top_p=args.top_p, top_k=args.top_k, end_tokens=[mt.tokenizer.eos_token_id])
+        # strategy = BeamSearchStrategy(
+        #     temperature=args.temperature,
+        #     top_p=args.top_p,
+        #     top_k=args.top_k,
+        #     end_tokens=[mt.tokenizer.eos_token_id],
+        #     num_beams=args.num_beams,
+        #     consider_end=True,
+        #     repetition_penalty=args.repetition_penalty
+        # )
+        strategy = BaseStrategy(temperature=args.temperature, top_p=args.top_p, top_k=args.top_k, end_tokens=[mt.tokenizer.eos_token_id])
         get_func = mt.text_processor_inference.get_func(None, **kwargs)
         output = filling_sequence(
             mt.model, seq,
@@ -286,9 +291,9 @@ class BaseTask(object):
         timers('batch generator').start()
         data_b = self.get_batch(
             data_iterator, args, timers)
-        if data_b is None:
-            return torch.tensor(0, device=args.device), {"question_ids": "-1", "preds": PAD_STR}
         timers('batch generator').stop()
+        if data_b is None:
+            return torch.tensor(0, device=args.device), {"question_ids": "-1", "preds": PAD_STR, "labels": PAD_STR}
         data_b, tokens, context_len = self.preprocess_datab_eval(data_b)
         question_id = data_b.pop('question_id')[0]
         labels = data_b.pop('labels')
@@ -342,7 +347,7 @@ class BaseTask(object):
             # for debug only
             if hasattr(args, "use_debug_mode") and args.use_debug_mode:
                 test_args.strict_eval = False
-                test_args.eval_iters = 50
+                test_args.eval_iters = 200
                 test_args.eval_interval = 1
             test_args.load = test_args.save if self.need_finetune else None
             _, metrics = testing_main(test_args,
