@@ -24,7 +24,8 @@ class BaseDataset(object):
         @wraps(func)
         def new_func(self, *args, **kwargs):
             if self.custom_functions.get(func.__name__, None):
-                return self.custom_functions[func.__name__](*args, **kwargs)
+                return self.custom_functions[func.__name__](self, *args, **kwargs)
+                # return self.custom_functions[func.__name__](*args, **kwargs)
             return func(self, *args, **kwargs)
         return new_func
     

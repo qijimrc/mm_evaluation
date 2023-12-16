@@ -51,7 +51,8 @@ class BaseTask(object):
         @wraps(func)
         def new_func(self, *args, **kwargs):
             if self.custom_functions.get(func.__name__, None):
-                return self.custom_functions[func.__name__](*args, **kwargs)
+                return self.custom_functions[func.__name__](self, *args, **kwargs)
+                # return self.custom_functions[func.__name__](*args, **kwargs)
             return func(self, *args, **kwargs)
         return new_func
 
@@ -71,9 +72,11 @@ class BaseTask(object):
                 qa = item["json"]
                 if meta_keys is None:
                     meta_keys = list(qa["metadata"].keys())
-                c_res = [qa[k] for k in top_keys] + [qa["metadata"][k] for k in meta_keys]
+                # c_res = [qa[k] for k in top_keys] + [qa["metadata"][k] for k in meta_keys]
+                c_res = [qa[k] for k in top_keys] + [qa["metadata"][k] for k in meta_keys] + [item["image_path"]]
                 result.append(c_res)
-            return pd.DataFrame(result, columns=top_keys + meta_keys, dtype=str)
+            # return pd.DataFrame(result, columns=top_keys + meta_keys, dtype=str)
+            return pd.DataFrame(result, columns=top_keys + meta_keys + ["image_path"], dtype=str)
 
         if self.mode not in self.dataset_mirror:
             dataloader = self.dataloader_mirror["val"] if self.mode == "finetune" else self.dataloader_mirror["test"]

@@ -36,6 +36,8 @@ class ModelInterface(object):
         return self.model(*args, **kwds)
     
     def reset_model(self, task):
+        if not task.need_finetune:
+            self.args.mode = 'inference'
         iteration = load_checkpoint(self.model, self.args, load_path=self.args.from_pretrained)
         self.recover_model()
         self.text_processor = self.text_processor_class(self.tokenizer, task.max_source_length+task.max_target_length, image_length=self.image_length, model=self.model)
