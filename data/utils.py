@@ -18,8 +18,11 @@ def generate_prompt_in_multi_choice(choices, question, language="zh"):
     return prompt
 
 def get_image_bytes(image_path, img_save_path):
-    with open(image_path, "rb") as f:
-        data = f.read()
+    if type(image_path) is not str:
+        data = image_path
+    else:
+        with open(image_path, "rb") as f:
+            data = f.read()
     with open(img_save_path, "wb") as f:
         f.write(data)
     return data
@@ -49,9 +52,11 @@ def save_data(all_data, save_dir, dataset_name, mode):
             "key": join_id,
             "json": data["json"]
         }
+        c_meta["image_path"] = os.path.join(os.path.join(c_filename, f'{join_id}.jpg'))
         if "image_path" in data and not data["image_path"].startswith("$$$"):
-            c_meta["image_path"] = os.path.join(os.path.join(c_filename, f'{join_id}.jpg'))
             c_tar["jpg"] = get_image_bytes(data["image_path"], os.path.join(save_dir, c_meta["image_path"]))
+        else:
+            c_tar['jpg'] = get_image_bytes(data["image_bytes"], os.path.join(save_dir, c_meta["image_path"]))
 
         result_meta.append(c_meta)
         result_tar.append(c_tar)

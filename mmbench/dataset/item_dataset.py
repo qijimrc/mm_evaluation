@@ -80,12 +80,12 @@ class ItemDataset(Dataset, BaseDataset):
                 dialogues = dialogues[load_id]
             else:
                 raise ValueError("Unknown train_data_load_mode: {}, support random / epoch_round".format(self.args.train_data_load_mode))
-        uni_key = f'{data["image_path"]}-{dialogues["question_id"]}-{index}'
-        text_dict, img = eval(f'self.{dialogues["datatype"]}')(dialogues["metadata"], uni_key, img=img)
-        if text_dict == None or len(text_dict) == 0:
-            print_all(f"Process text failed. Please check the max_target_length & max_source_length.\n The data is {uni_key}", level=logging.WARNING)
-            return {}
+        uni_key = f'{data["image_path"]}-{dialogues["question_id"]}'
+        text_dict, img = eval(f'self.{dialogues["datatype"]}')(dialogues["metadata"], uni_key, img=img, data_mode=self.data_mode)
         img_dict = self.process_img(img)
+        if text_dict == None:
+            print_all(f"Process text failed. Please check the max_target_length & max_source_length.\n The data is {dialogues['metadata']}", level=logging.WARNING)
+            return {}
         # other attr
         ret = {**img_dict, **text_dict, "question_id": str(dialogues["question_id"])}
         for attr in self.other_attr:

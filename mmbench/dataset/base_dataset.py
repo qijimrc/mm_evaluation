@@ -41,11 +41,13 @@ class BaseDataset(object):
     
     @custom_func
     def normal_qa(self, metadata, uni_key, **kwargs):
+        img = kwargs['img']
         text_dict = self.process_text(metadata["answer"], metadata["question"])
-        return text_dict
+        return text_dict, img
 
     @custom_func
     def normal_caption(self, metadata, uni_key, **kwargs):
+        img = kwargs['img']
         if self.args.no_prompt:
             text_dict = self.process_text(metadata["answer"], "")
         else:
@@ -53,10 +55,11 @@ class BaseDataset(object):
             template = self.templates_zh if language_zh else self.templates_en
             prompt = random.choice(template["Caption"]).replace('<image>', '')
             text_dict = self.process_text(metadata["answer"], prompt)
-        return text_dict
+        return text_dict, img
 
     @custom_func
     def multichoice(self, metadata, uni_key, **kwargs):
+        img = kwargs['img']
         def generate_prompt_in_multi_choice(choices, question):
             language_zh = is_chinese(question)
             template = self.templates_zh if language_zh else self.templates_en
@@ -72,7 +75,7 @@ class BaseDataset(object):
         prompt = generate_prompt_in_multi_choice(metadata["choices"], metadata["question"])
         answer = chr(ord('A')+metadata["answer"]) if isinstance(metadata["answer"], int) else metadata["answer"]
         text_dict = self.process_text(answer, prompt)
-        return text_dict
+        return text_dict, img
     
     @custom_func
     def grounding_qa(self, metadata, uni_key, **kwargs):
