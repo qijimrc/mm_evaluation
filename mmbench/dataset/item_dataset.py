@@ -29,6 +29,8 @@ class ItemDataset(Dataset, BaseDataset):
                     image_num += 1
                     if "image_path" in json_data:
                         json_data["image_path"] = os.path.join(jsonl_dir, json_data["image_path"])
+                    else:
+                        json_data["image_path"] = "<null>"
                     if self.data_mode == "train":
                         data.append(json_data)
                     else:
@@ -39,6 +41,15 @@ class ItemDataset(Dataset, BaseDataset):
                             else:
                                 data.append({"json": qa})
         print_rank0(f"find {image_num} image-level samples in {qa_num} qa-level samples in all...")
+        # DEBUG-CODE-START
+        # These codes are for debugging specific data in s_qids
+        # s_qids = set()
+        # new_data = []
+        # for c_data in data:
+        #     if c_data['json']['question_id'] in s_qids:
+        #         new_data.append(c_data)
+        # data = new_data
+        # DEBUG-CODE-END
         return data
     
     def __len__(self):
@@ -48,7 +59,7 @@ class ItemDataset(Dataset, BaseDataset):
         data = self.data[index]
         # img
         try:
-            if 'image_path' in data:
+            if 'image_path' in data and not data["image_path"].startswith("<null>"):
                 img = Image.open(data["image_path"]).convert('RGB')
             else:
                 img = Image.open(self.img_pad).convert('RGB')
@@ -69,7 +80,7 @@ class ItemDataset(Dataset, BaseDataset):
                 dialogues = dialogues[load_id]
             else:
                 raise ValueError("Unknown train_data_load_mode: {}, support random / epoch_round".format(self.args.train_data_load_mode))
-        uni_key = f'{dialogues["question_id"]}'
+        uni_key = f'{data["image_path"]}-{dialogues["question_id"]}-{index}'
         text_dict, img = eval(f'self.{dialogues["datatype"]}')(dialogues["metadata"], uni_key, img=img)
         if text_dict == None or len(text_dict) == 0:
             print_all(f"Process text failed. Please check the max_target_length & max_source_length.\n The data is {uni_key}", level=logging.WARNING)

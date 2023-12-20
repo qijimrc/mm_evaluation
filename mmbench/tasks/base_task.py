@@ -257,23 +257,33 @@ class BaseTask(object):
         tokens = data_b['input_ids'][:, :context_len]
         return data_b, tokens, context_len
     
-    def chat(self, tokens, mt, args, **kwargs):
+    def chat(self, tokens, mt, args, context_len, **kwargs):
         if self.custom_functions.get("chat", None):
             return self.custom_functions["chat"](mt.model, mt.tokenizer, mt.text_processor_inference, tokens, args, **kwargs)
         inputs = tokens.to(mt.model.parameters().__next__().device)[0]
+        if self.max_source_length + self.max_target_length <= len(inputs):
+            print_all("[ERROR] Input is too long. Please use the larger max_source_length & max_target_length")
+            return PAD_STR
         seq = torch.cat(
             [inputs, torch.tensor([-1] * (self.max_source_length + self.max_target_length - len(inputs)), device=inputs.device)], dim=0
         )
-        # strategy = BeamSearchStrategy(
-        #     temperature=args.temperature,
-        #     top_p=args.top_p,
-        #     top_k=args.top_k,
-        #     end_tokens=[mt.tokenizer.eos_token_id],
-        #     num_beams=args.num_beams,
-        #     consider_end=True,
-        #     repetition_penalty=args.repetition_penalty
-        # )
-        strategy = BaseStrategy(temperature=args.temperature, top_p=args.top_p, top_k=args.top_k, end_tokens=[mt.tokenizer.eos_token_id])
+        if hasattr(args, "use_beamsearch") and args.use_beamsearch:
+            strategy = BeamSearchStrategy(
+                temperature=args.temperature,
+                top_p=args.top_p,
+                top_k=args.top_k,
+                end_tokens=[mt.tokenizer.eos_token_id],
+                num_beams=args.num_beams,
+                consider_end=True,
+                repetition_penalty=args.repetition_penalty
+            )
+        else:
+            strategy = BaseStrategy(
+                temperature=args.temperature,
+                top_p=args.top_p,
+                top_k=args.top_k,
+                end_tokens=[mt.tokenizer.eos_token_id]
+            )
         get_func = mt.text_processor_inference.get_func(None, **kwargs)
         output = filling_sequence(
             mt.model, seq,
@@ -282,8 +292,9 @@ class BaseTask(object):
             get_masks_and_position_ids=get_func,
             **kwargs
         )[0]  # drop memory
-
-        return output
+        output = output[0][context_len:].unsqueeze(0)
+        pred = mt.tokenizer.batch_decode(output, skip_special_tokens=True)[0].strip()
+        return pred
 
     @custom_func
     def forward_step_eval(self, mt, data_iterator, model, args, timers):
@@ -297,15 +308,12 @@ class BaseTask(object):
         data_b, tokens, context_len = self.preprocess_datab_eval(data_b)
         question_id = data_b.pop('question_id')[0]
         labels = data_b.pop('labels')
-        
-        outputs = self.chat(tokens, mt, args, **data_b)[0][context_len:]
 
-        outputs = outputs.unsqueeze(0)
-        pred = mt.tokenizer.batch_decode(outputs, skip_special_tokens=True)[0].strip()
+        pred = self.chat(tokens, mt, args, context_len, **data_b)
         labels.masked_fill_(labels == -100, mt.tokenizer.pad_token_id)
         decode_labels = mt.tokenizer.batch_decode(labels, skip_special_tokens=True)
         metrics = {"question_ids": str(question_id), "preds": str(pred), "labels": str(decode_labels)}
-        return torch.tensor(0, device=outputs.device), metrics
+        return torch.tensor(0, device=args.device), metrics
     
     def do_finetune(self, args, mt):
         finetune_args = self.update_params(args, param_types=["finetune_params", "eval_params", "data_params"])
