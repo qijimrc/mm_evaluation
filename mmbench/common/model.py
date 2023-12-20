@@ -38,8 +38,19 @@ class ModelInterface(object):
     def reset_model(self, task):
         iteration = load_checkpoint(self.model, self.args, load_path=self.args.from_pretrained)
         self.recover_model()
-        self.text_processor = self.text_processor_class(self.tokenizer, task.max_source_length+task.max_target_length, image_length=self.image_length, model=self.model)
-        self.text_processor_inference = self.text_processor_inference_class(self.tokenizer, task.max_source_length+task.max_target_length, self.image_length, self.model, task.no_prompt)
+        self.text_processor = self.text_processor_class(
+            self.tokenizer,
+            task.max_source_length+task.max_target_length+self.image_length,
+            image_length=self.image_length,
+            model=self.model
+        )
+        self.text_processor_inference = self.text_processor_inference_class(
+            self.tokenizer,
+            task.max_source_length+task.max_target_length+self.image_length,
+            self.image_length,
+            self.model,
+            task.no_prompt
+        )
         return iteration
         
 

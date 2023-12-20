@@ -29,6 +29,8 @@ class ItemDataset(Dataset, BaseDataset):
                     image_num += 1
                     if "image_path" in json_data:
                         json_data["image_path"] = os.path.join(jsonl_dir, json_data["image_path"])
+                    else:
+                        json_data["image_path"] = "<null>"
                     if self.data_mode == "train":
                         data.append(json_data)
                     else:
@@ -39,6 +41,15 @@ class ItemDataset(Dataset, BaseDataset):
                             else:
                                 data.append({"json": qa})
         print_rank0(f"find {image_num} image-level samples in {qa_num} qa-level samples in all...")
+        # DEBUG-CODE-START
+        # These codes are for debugging specific data in s_qids
+        # s_qids = set()
+        # new_data = []
+        # for c_data in data:
+        #     if c_data['json']['question_id'] in s_qids:
+        #         new_data.append(c_data)
+        # data = new_data
+        # DEBUG-CODE-END
         return data
     
     def __len__(self):
@@ -48,7 +59,7 @@ class ItemDataset(Dataset, BaseDataset):
         data = self.data[index]
         # img
         try:
-            if 'image_path' in data:
+            if 'image_path' in data and not data["image_path"].startswith("<null>"):
                 img = Image.open(data["image_path"]).convert('RGB')
             else:
                 img = Image.open(self.img_pad).convert('RGB')
@@ -62,7 +73,7 @@ class ItemDataset(Dataset, BaseDataset):
             if self.args.train_data_load_mode == "random":
                 dialogues = random.choice(dialogues)
             elif self.args.train_data_load_mode == "epoch_round":
-                qa_key = f'{data["image_path"]}-{data["key"]}'
+                qa_key = f'{data["key"]}'
                 # if not cache, start from a random index
                 load_id = (self.image_qa_cache.get(qa_key, random.randint(0, len(dialogues)-1)-1) + 1) % len(dialogues)
                 self.image_qa_cache[qa_key] = load_id

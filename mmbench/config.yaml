@@ -1,22 +1,49 @@
 # Configure the task for evaluation
 
-server_addr: zhongwei
+server_addr: wulan
 
 home_env:
-  ningxia:
-    data_home: /nxchinamobile2/shared/mmbench_datasets
   wulan:
-    data_home: /mnt/shared/img_datasets/mmbench_datasets
+    data_home: /mnt/shared/img_datasets/mmbench_datasets/processed
   zhongwei:
-    data_home: /share/img_datasets/mmbench_datasets
+    data_home: /share/img_datasets/mmbench_datasets/processed_mmbench_20231120
+  zhongwei2:
+    data_home: /zhipu-data/img_datasets/mmbench_datasets/processed_mmbench_20231120
 
 tasks:
   level_1:
+    Infer:
+      data:
+        test_data: /zhipu-data/img_datasets/cleaned_rlhf/raw_data/20231218###test
+      need_finetune: false
+      need_evaluate: true
+      data_params:
+        max_source_length: 512
+        max_target_length: 256
+        iterable_dataset: false
+        train_data_load_mode: epoch_round
+        block_size: 2000
+      finetune_params:
+        log_interval: 20
+        train_iters: 2000
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 500
+        split: "1"
+      eval_params:
+        eval_iters: 100
+        eval_interval: 500
+        eval_batch_size: 1
+        top_k: 1
+        top_p: 0.4
+        temperature: 0.8
+
     ScienceQA:
       data:
-        train_data: processed/ScienceQA/train###train
-        valid_data: processed/ScienceQA/val###val
-        test_data: processed/ScienceQA/test###test
+        train_data: ScienceQA/train###train
+        valid_data: ScienceQA/val###val
+        test_data: ScienceQA/test###test
       need_finetune: true
       need_evaluate: true
       data_params:
@@ -43,9 +70,9 @@ tasks:
     
     Visual7W:
       data:
-        train_data: processed/Visual7W/train###train
-        valid_data: processed/Visual7W/val###val
-        test_data: processed/Visual7W/test###test
+        train_data: Visual7W/train###train
+        valid_data: Visual7W/val###val
+        test_data: Visual7W/test###test
       need_finetune: true
       need_evaluate: true
       data_params:
@@ -72,9 +99,9 @@ tasks:
     
     OCRVQA:
       data:
-        train_data: processed/OCR-VQA/train###train
-        valid_data: processed/OCR-VQA/val###val
-        test_data: processed/OCR-VQA/test###test
+        train_data: OCR-VQA/train###train
+        valid_data: OCR-VQA/val###val
+        test_data: OCR-VQA/test###test
       need_finetune: true
       need_evaluate: true
       data_params:
@@ -101,8 +128,8 @@ tasks:
     
     TDIUC:
       data:
-        train_data: processed/TDIUC/train###train
-        test_data: processed/TDIUC/val###test
+        train_data: TDIUC/train###train
+        test_data: TDIUC/val###test
       need_finetune: true
       need_evaluate: true
       data_params:
@@ -128,9 +155,9 @@ tasks:
     
     TextVQA:
       data:
-        train_data: processed/TextVQA/train###train
-        test_data: processed/TextVQA/val###test
-        upload_data: [processed/TextVQA/test]
+        train_data: TextVQA/train###train
+        test_data: TextVQA/val###test
+        upload_data: [TextVQA/test]
       need_finetune: true
       need_evaluate: true
       data_params:
@@ -156,9 +183,9 @@ tasks:
       
     GQA:
       data:
-        train_data: processed/GQA/train###train
-        valid_data: processed/GQA/val###val
-        test_data: processed/GQA/testdev_balanced###test
+        train_data: GQA/train###train
+        valid_data: GQA/val###val
+        test_data: GQA/testdev_balanced###test
       need_finetune: true
       need_evaluate: true
       data_params:
@@ -185,7 +212,7 @@ tasks:
     
     NoCaps:
       data:
-        test_data: processed/NoCaps/val###test
+        test_data: NoCaps/val###test
       need_finetune: false
       need_evaluate: true
       data_params:
@@ -212,9 +239,9 @@ tasks:
     
     VQAv2:
       data:
-        train_data: processed/VQAV2/train###train
-        test_data: processed/VQAV2/val###test
-        upload_data: [processed/VQAV2/test]
+        train_data: VQAV2/train###train
+        test_data: VQAV2/val###test
+        upload_data: [VQAV2/test]
       need_finetune: false
       need_evaluate: true
       data_params:
@@ -241,9 +268,9 @@ tasks:
     
     COCO:
       data:
-        train_data: processed/COCO/train###train
-        valid_data: processed/COCO/val###val
-        test_data: processed/COCO/val###test
+        train_data: COCO/train###train
+        valid_data: COCO/val###val
+        test_data: COCO/val###test
       need_finetune: true
       need_evaluate: true
       data_params:
@@ -270,8 +297,8 @@ tasks:
 
     STVQA:
       data:
-        train_data: processed/STVQA/train###train
-        upload_data: [processed/STVQA/test_task_3]
+        train_data: STVQA/train###train
+        upload_data: [STVQA/test_task_3]
       need_finetune: false
       need_evaluate: true
       data_params:
@@ -298,9 +325,9 @@ tasks:
 
     FlickrCap:
       data:
-        train_data: processed/FlickrCap/train###train
-        valid_data: processed/FlickrCap/val###val
-        test_data: processed/FlickrCap/test###test
+        train_data: FlickrCap/train###train
+        valid_data: FlickrCap/val###val
+        test_data: FlickrCap/test###test
       need_finetune: false
       need_evaluate: true
       data_params:
@@ -327,9 +354,9 @@ tasks:
 
     ChartQA:
       data:
-        train_data: processed/ChartQA/train###train
-        valid_data: processed/ChartQA/val###val
-        test_data: processed/ChartQA/test###test
+        train_data: ChartQA/train###train
+        valid_data: ChartQA/val###val
+        test_data: ChartQA/test###test
       need_finetune: false
       need_evaluate: true
       data_params:
@@ -356,9 +383,9 @@ tasks:
 
     RefCOCO:
       data:
-        train_data: processed/RefCOCO/train###train
-        valid_data: processed/RefCOCO/refcoco-val###val
-        test_data: processed/RefCOCO/test###test
+        train_data: RefCOCO/train###train
+        valid_data: RefCOCO/refcoco-val###val
+        test_data: RefCOCO/test###test
       need_finetune: false
       need_evaluate: true
       data_params:
@@ -385,9 +412,9 @@ tasks:
 
     DocVQA:
       data:
-        train_data: processed/DocVQA/train###train
-        valid_data: processed/DocVQA/val###val
-        test_data: processed/DocVQA/test###test
+        train_data: DocVQA/train###train
+        valid_data: DocVQA/val###val
+        test_data: DocVQA/test###test
       need_finetune: false
       need_evaluate: true
       data_params:
@@ -414,9 +441,9 @@ tasks:
 
     VizWizVQA:
       data:
-        train_data: processed/VizWiz-VQA/train###train
-        valid_data: processed/VizWiz-VQA/val###val
-        test_data: processed/VizWiz-VQA/test###test
+        train_data: VizWiz-VQA/train###train
+        valid_data: VizWiz-VQA/val###val
+        test_data: VizWiz-VQA/test###test
       need_finetune: false
       need_evaluate: true
       data_params:
@@ -443,8 +470,8 @@ tasks:
     
     TallyQA:
       data:
-        train_data: processed/TallyQA/train###train
-        test_data: processed/TallyQA/test###test
+        train_data: TallyQA/train###train
+        test_data: TallyQA/test###test
       need_finetune: false
       need_evaluate: true
       data_params:
@@ -472,8 +499,8 @@ tasks:
   level_2:
     OKVQA:
       data:
-        train_data: processed/OK-VQA/train###train
-        test_data: processed/OK-VQA/val###test
+        train_data: OK-VQA/train###train
+        test_data: OK-VQA/val###test
       need_finetune: false
       need_evaluate: true
       data_params:
@@ -501,8 +528,8 @@ tasks:
   level_3:
     HalVQA:
       data:
-        train_data: processed/HalVQA/train###train
-        test_data: processed/HalVQA/test###test
+        train_data: HalVQA/train###train
+        test_data: HalVQA/test###test
       need_finetune: true
       need_evaluate: true
       data_params:
@@ -527,3 +554,85 @@ tasks:
         top_p: 0.4
         temperature: 0.8
       
+    TouchStone:
+      data:
+        test_data: TouchStone/test###test
+      need_finetune: false
+      need_evaluate: true
+      data_params:
+        max_source_length: 256
+        max_target_length: 128
+        iterable_dataset: false
+        train_data_load_mode: epoch_round
+        block_size: 500
+      finetune_params:
+        log_interval: 20
+        train_iters: 2000
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 500
+        split: "1"
+      eval_params:
+        eval_iters: 100
+        eval_interval: 500
+        eval_batch_size: 1
+        top_k: 1
+        top_p: 0.4
+        temperature: 0.8
+    
+    TouchStoneChinese:
+      data:
+        test_data: TouchStone/test-zh###test
+      need_finetune: false
+      need_evaluate: true
+      data_params:
+        max_source_length: 256
+        max_target_length: 128
+        iterable_dataset: false
+        train_data_load_mode: epoch_round
+        block_size: 500
+      finetune_params:
+        log_interval: 20
+        train_iters: 2000
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 500
+        split: "1"
+      eval_params:
+        eval_iters: 100
+        eval_interval: 500
+        eval_batch_size: 1
+        top_k: 1
+        top_p: 0.4
+        temperature: 0.8
+    
+    AlignMMBench:
+      data:
+        train_data: AlignMMBench/train###train
+        valid_data: AlignMMBench/valid###valid
+        test_data: AlignMMBench/test###test
+      need_finetune: false
+      need_evaluate: true
+      data_params:
+        max_source_length: 1024
+        max_target_length: 512
+        iterable_dataset: false
+        train_data_load_mode: epoch_round
+        block_size: 500
+      finetune_params:
+        log_interval: 20
+        train_iters: 1000
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 50
+        split: "1"
+      eval_params:
+        strict_eval: true
+        eval_interval: 50
+        eval_batch_size: 1
+        top_k: 1
+        top_p: 0.4
+        temperature: 0.8

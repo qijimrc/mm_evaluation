@@ -98,6 +98,9 @@ class Evaluator:
                 args_cp.save_details_result_path = os.path.join(args.save, f'{args.experiment_name}_{c_task.task_name}-{timestring}.csv')
                 args_cp.experiment_name = f'{args_cp.experiment_name}_{c_task.task_name}-{timestring}'
                 args_cp.save = os.path.join(args_cp.save, args_cp.experiment_name)
+                if not os.path.exists(args_cp.save):
+                    print_rank0(f"Create save home: {args_cp.save}")
+                    os.makedirs(args_cp.save)
                 # finetune
                 if c_task.need_finetune:
                     c_task.do_finetune(args_cp, mt)
