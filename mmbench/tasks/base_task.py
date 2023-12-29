@@ -316,7 +316,8 @@ class BaseTask(object):
 
     def do_evaluate(self, args, mt) -> dict:
         test_args = self.update_params(args, param_types=["eval_params", "data_params"])
-        if not ("test_data" in test_args and test_args.test_data):
+        # if not ("test_data" in test_args and test_args.test_data):
+        if not ("test_data" in test_args and test_args.test_data) and not ("upload_data" in test_args and test_args.upload_data):
             raise ValueError(f"[{self.task_name}]: test_data is required for testing.")
         test_args.train_data = None
         test_args.valid_data = None
