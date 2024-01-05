@@ -14,7 +14,7 @@ from torch.nn import CrossEntropyLoss
 from sat import mpu
 from sat.helpers import print_rank0, print_all
 from sat.model.mixins import CachedAutoregressiveMixin
-from sat.generation.autoregressive_sampling import filling_sequence
+from sat.generation.autoregressive_sampling import filling_sequence, get_masks_and_position_ids_default
 from sat.generation.sampling_strategies import BaseStrategy, BeamSearchStrategy
 from sat.data_utils.webds import MetaDistributedWebDataset
 
@@ -284,7 +284,8 @@ class BaseTask(object):
                 top_k=args.top_k,
                 end_tokens=[mt.tokenizer.eos_token_id]
             )
-        get_func = mt.text_processor_inference.get_func(None, **kwargs)
+        get_func = mt.text_processor_inference.get_func(None, **kwargs) \
+            if hasattr(mt.text_processor_inference, 'get_func') else get_masks_and_position_ids_default
         output = filling_sequence(
             mt.model, seq,
             batch_size=1,

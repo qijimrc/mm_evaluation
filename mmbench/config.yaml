@@ -177,7 +177,7 @@ tasks:
       eval_params:
         eval_interval: 0
         eval_batch_size: 1
-        top_k: 10
+        top_k: 1
         top_p: 0.4
         temperature: 0.8
       

@@ -14,6 +14,7 @@ class TouchStoneChineseTask(BaseTask):
         result_df.to_csv(args.save_details_result_path, index=None)
         # compute scores
         metric_cls = Registry.get_metric_class('llm_score')
-        scores = metric_cls(args).calc_scores(result_df, "chinese")
+        # scores = metric_cls(args).calc_scores(result_df, "chinese")
+        scores = {}
         return scores
         
