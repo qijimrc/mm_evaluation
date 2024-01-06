@@ -117,7 +117,8 @@ class BaseTask(object):
         if self.mode == "test":
             assert len(res_df) == len(mirror_df), f"Sample nums not same in test: {len(res_df)} != {len(mirror_df)}"
         res_df = res_df.merge(mirror_df, on="question_id", how="inner")
-        if self.mode == "test" and hasattr(args, "save_details_results") and args.save_details_results:
+        # if self.mode == "test" and hasattr(args, "save_details_results") and args.save_details_results:
+        if self.mode in ["test", "upload"] and hasattr(args, "save_details_results") and args.save_details_results:
             res_df.to_csv(args.save_details_result_path, index=None)
         return self.calc_scores(args, res_df)
 
@@ -365,11 +366,12 @@ class BaseTask(object):
                     print_rank0(f'Due to strict_eval and iterable_dataset, resize eval_iters: \
                         {test_args.eval_iters}', level=logging.WARNING)
                 # start
-                testing_main(test_args,
-                            model=mt.model,
-                            forward_step_eval=self.partial_wo(self.forward_step_eval, mt),
-                            create_dataset_function=self.partial_wo(self.create_dataset_function, mt),
-                            handle_metrics_function=self.partial_wo(self.handle_metrics, test_args),
-                            collate_fn=self.partial_wo(self.collate_fn, mt))
+                # testing_main(test_args,
+                _, metrics = testing_main(test_args,
+                                            model=mt.model,
+                                            forward_step_eval=self.partial_wo(self.forward_step_eval, mt),
+                                            create_dataset_function=self.partial_wo(self.create_dataset_function, mt),
+                                            handle_metrics_function=self.partial_wo(self.handle_metrics, test_args),
+                                            collate_fn=self.partial_wo(self.collate_fn, mt))
                 print_rank0(f"End {upload_data}...")
         return metrics
