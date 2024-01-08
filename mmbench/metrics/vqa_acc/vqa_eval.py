@@ -21,6 +21,7 @@ class VQAEval:
         Params:
           @pred_qas: a list of dict where each contains required keys of `question_id` and `answer`.
           @gt_qas: a list of dict where each contains required keys of `question_id`,  'answers' and  optional keys of `question`, `question_type` and 'answer_type'.
+          @n: rounding precision。 round(res, n)
         """
         self.n = n
         self.accuracy = {}

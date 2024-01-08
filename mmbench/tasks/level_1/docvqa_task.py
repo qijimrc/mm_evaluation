@@ -20,6 +20,6 @@ class DocVQATask(BaseTask):
         metrics_scores = {}
         metric_cls = Registry.get_metric_class('ANLS')
         pred_qas = {r["question_id"]: r["preds"] for i, r in results_df.iterrows()}
-        gt_qas = {r["question_id"]: r["answer_list"] for i, r in results_df.iterrows()}
+        gt_qas = {r["question_id"]: eval(r["answer_list"]) for i, r in results_df.iterrows()}
         metrics_scores["ANLS"] = metric_cls.calc_scores(pred_qas, gt_qas)
         return metrics_scores
