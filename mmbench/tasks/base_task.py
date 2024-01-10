@@ -149,7 +149,8 @@ class BaseTask(object):
                     value = [value]
                 merge_args[key] = []
                 for p in value:
-                    tmp_path = os.path.join(args.data_home_dir, p)
+                    # tmp_path = os.path.join(args.data_home_dir, p)
+                    tmp_path = p if os.path.exists(os.path.dirname(p)) else os.path.join(args.data_home_dir, p)
                     merge_args[key].append(tmp_path)
         return argparse.Namespace(**merge_args)
     

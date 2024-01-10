@@ -19,6 +19,8 @@ class ItemDataset(Dataset, BaseDataset):
         self.image_qa_cache = {} # {uni_qa_key: c_qaid}
     
     def load_data(self, data_dir):
+        import ipdb
+        ipdb.set_trace()
         all_jsonlines = find_all_files(data_dir, suffix=".jsonl")
         data, qa_num, image_num = [], 0, 0
         for file in all_jsonlines:
