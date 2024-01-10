@@ -268,8 +268,8 @@ tasks:
 
     OCR_EN:
       data:
-        train_data: /share/img_datasets/mmbench_datasets/processed/TAL_OCR_ENG/test###train
-        test_data: /share/img_datasets/mmbench_datasets/processed/TAL_OCR_ENG/test###test
+        train_data: TAL_OCR_ENG/test###train
+        test_data: TAL_OCR_ENG/test###test
         # upload_data: [VQAV2/test]
       need_finetune: false
       need_evaluate: true
@@ -297,8 +297,8 @@ tasks:
     
     OCR_ZH:
       data:
-        train_data: /share/wdk/processed/TAL_OCR_CHN/train###train
-        test_data: /share/wdk/processed/TAL_OCR_CHN/test###test
+        train_data: TAL_OCR_CHN/train###train
+        test_data: TAL_OCR_CHN/test###test
         # upload_data: [VQAV2/test]
       need_finetune: false
       need_evaluate: true
