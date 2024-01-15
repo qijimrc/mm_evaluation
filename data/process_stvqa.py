@@ -66,7 +66,7 @@ def process_data(root_dir, mode):
     print(f"Save: {image_num} images, {item_num} samples. Drop: {drop_num} samples")
 
 if __name__ == "__main__":
-    root_dir = "/mnt/shared/img_datasets/mmbench_datasets"
+    root_dir = "/share/img_datasets/mmbench_datasets"
     for mode in ['train', 'test_task_1','test_task_2','test_task_3']:
         print(f"process {mode}.")
         process_data(root_dir, mode)
