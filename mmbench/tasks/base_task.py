@@ -354,11 +354,14 @@ class BaseTask(object):
         # handle upload data
         if hasattr(test_args, 'upload_data') and test_args.upload_data:
             self.mode = "upload"
+            test_args.strict_eval = True
             print_rank0(f"Find {len(test_args.upload_data)} no-answer test datasets.")
             for upload_data in test_args.upload_data:
                 print_rank0(f"Start {upload_data}...")
                 test_args.test_data = [f'{upload_data}###upload']
-                test_args.save_details_result_path = test_args.save_details_result_path.split('.')[0] + '-' +\
+                # test_args.save_details_result_path = test_args.save_details_result_path.split('.')[0] + '-' +\
+                #                                         os.path.basename(upload_data)
+                test_args.save_details_result_path = '.'.join(test_args.save_details_result_path.split('.')[:-1]) + '-' +\
                                                         os.path.basename(upload_data)
                 if test_args.iterable_dataset:
                     self.create_dataset_function(mt, test_args.test_data[0], test_args)

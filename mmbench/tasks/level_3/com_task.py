@@ -13,8 +13,6 @@ class COMTask(BaseTask):
         super().__init__(task_cfg, **kw_args)
     
     def calc_scores(self, args, result_df) -> Dict:
-        import ipdb
-        ipdb.set_trace()
         """ Parse answer to separated explaination and answer.
         """
         com_scorer = Registry.get_metric_class('COMScore')
@@ -27,7 +25,7 @@ class COMTask(BaseTask):
                 sents = sent_tokenize(preds)
                 pred_expl, pred_ans = ''.join(sents[:-1]), sents[-1]
             gt_expl_s = ''
-            gt_expl_s = [' '.join(sent_tokenize(dia)[:-1]) for dia in gts['com_chains_dialogues']]
+            gt_expl_s = [' '.join(sent_tokenize(dia['answer'])[:-1]) for dia in eval(gts)]
 
             pure_gtan = gt_ans.translate(translate_table).strip()
             pure_predan = pred_ans.translate(translate_table).strip()
