@@ -30,15 +30,21 @@ class COCOTask(BaseTask):
         if not label_dict and not pred_dict:
             metrics_scores = metric_cls.calc_scores(pred_dict, label_dict)
         all_scores = defaultdict(float)
+        all_scores['SPICE'] = {'pr': 0.0, 're': 0.0, 'f': 0.0, 'fn': 0.0, 'numImages': 0.0, 'fp': 0.0, 'tp': 0.0}
         for k in metrics_scores:
             for m in metrics_scores[k]:
                 if m == 'image_id':
                     continue
                 if m == 'SPICE':
-                    all_scores[m] += metrics_scores[k][m]['All']
+                    for p in all_scores[m]:
+                        all_scores[m][p] += metrics_scores[k][m]['All'][p]
                 else:
                     all_scores[m] += metrics_scores[k][m]
         for m in all_scores:
-            all_scores[m] /= len(metrics_scores)
+            if type(all_scores) is not dict:
+                all_scores[m] /= len(metrics_scores)
+            else:
+                for p in all_scores[m]:
+                    all_scores[m][p] /= len(metrics_scores)
         metric_cls.empty_cache()
         return all_scores
