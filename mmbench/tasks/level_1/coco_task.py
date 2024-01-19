@@ -32,6 +32,8 @@ class COCOTask(BaseTask):
         all_scores = defaultdict(float)
         for k in metrics_scores:
             for m in metrics_scores[k]:
+                if m == 'image_id':
+                    continue
                 if m == 'SPICE':
                     all_scores[m] += metrics_scores[k][m]['ALL']
                 else:
