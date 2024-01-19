@@ -35,7 +35,7 @@ class COCOTask(BaseTask):
                 if m == 'image_id':
                     continue
                 if m == 'SPICE':
-                    all_scores[m] += metrics_scores[k][m]['ALL']
+                    all_scores[m] += metrics_scores[k][m]['All']
                 else:
                     all_scores[m] += metrics_scores[k][m]
         for m in all_scores:
