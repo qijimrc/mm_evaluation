@@ -146,7 +146,7 @@ def report_evaluate_metrics(summary_writer, prefix, loss, ppl, step, avg_metrics
     string += 'loss: {:.6E} | '.format(loss)
     string += 'PPL: {:.6E}'.format(ppl)
     for key in avg_metrics:
-        string += ' {} {:.6E} |'.format(key, avg_metrics[key])
+        string += ' {} {:.6E} |'.format(key, avg_metrics[key]) if type(avg_metrics[key]) is not dict else " {} {} |".format(key, str({k:round(v, 6) for k,v in avg_metrics[key].items()}))
     length = len(string) + 1
     print_rank0('-' * 100)
     print_rank0('-' * length)
