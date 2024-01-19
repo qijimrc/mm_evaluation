@@ -29,7 +29,7 @@ class OCRTask(BaseTask):
                 now = 0
         if not label_dict and not pred_dict:
             metrics_scores = metric_cls.calc_scores(pred_dict, label_dict)
-        all_scores = {}
+        all_scores = defaultdict(float)
         for k in metrics_scores:
             for m in metrics_scores[k]:
                 if m == 'image_id':
@@ -40,6 +40,7 @@ class OCRTask(BaseTask):
                     all_scores[m] += metrics_scores[k][m]
         for m in all_scores:
             all_scores[m] /= len(metrics_scores)
+        metric_cls.empty_cache()
         return all_scores
 
 
@@ -77,4 +78,5 @@ class OCRTask(BaseTask):
                     all_scores[m] += metrics_scores[k][m]
         for m in all_scores:
             all_scores[m] /= len(metrics_scores)
+        metric_cls.empty_cache()
         return all_scores

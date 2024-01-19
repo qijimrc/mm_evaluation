@@ -40,4 +40,5 @@ class COCOTask(BaseTask):
                     all_scores[m] += metrics_scores[k][m]
         for m in all_scores:
             all_scores[m] /= len(metrics_scores)
+        metric_cls.empty_cache()
         return all_scores
