@@ -41,7 +41,7 @@ class OCRTask(BaseTask):
                 else:
                     all_scores[m] += metrics_scores[k][m]
         for m in all_scores:
-            if type(all_scores) is not dict:
+            if type(all_scores[m]) is not dict:
                 all_scores[m] /= len(metrics_scores)
             else:
                 for p in all_scores[m]:
@@ -85,7 +85,7 @@ class OCRTask(BaseTask):
                 else:
                     all_scores[m] += metrics_scores[k][m]
         for m in all_scores:
-            if type(all_scores) is not dict:
+            if type(all_scores[m]) is not dict:
                 all_scores[m] /= len(metrics_scores)
             else:
                 for p in all_scores[m]:
