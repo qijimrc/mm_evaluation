@@ -17,7 +17,12 @@ class CaptionMetric(BaseMetric):
     evalImgs = []
     eval = {}
     imgToEval = {}
-
+    
+    @classmethod
+    def empty_cache(cls):
+        cls.evalImgs = []
+        cls.eval = {}
+        cls.imgToEval = {}
 
     @classmethod
     def calc_scores(cls, pred_res: dict, gt_res: dict) -> Dict:
@@ -64,7 +69,7 @@ class CaptionMetric(BaseMetric):
                 cls.setImgToEvalImgs(scores, gts.keys(), method)
                 print("%s: %0.3f"%(method, score))
         cls.setEvalImgs()
-        return cls.eval
+        return cls.imgToEval
 
     @classmethod
     def setEval(cls, score, method):
@@ -81,3 +86,29 @@ class CaptionMetric(BaseMetric):
     @classmethod
     def setEvalImgs(cls):
         cls.evalImgs = [eval for imgId, eval in cls.imgToEval.items()]
+
+if __name__ == '__main__':
+    pred = {
+        1: ["hello, how are you?"],
+        2: ["I'm fine"],
+        3: ["ok"],
+    }
+    gt = {
+        1: ["hello"],
+        2: ["I'm fine"],
+        3: ["ok"],
+    }
+    res = CaptionMetric.calc_scores(pred, gt)
+    pred = {
+        4: ["hello, how are you?"],
+        5: ["I'm fine"],
+        6: ["ok"],
+    }
+    gt = {
+        4: ["hello"],
+        5: ["I'm fine"],
+        6: ["ok"],
+    }
+    res = CaptionMetric.calc_scores(pred, gt)
+
+    breakpoint()
