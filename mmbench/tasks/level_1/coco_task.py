@@ -26,6 +26,7 @@ class COCOTask(BaseTask):
             if now >= buffer_size:
                 metrics_scores = metric_cls.calc_scores(pred_dict, label_dict)
                 label_dict, pred_dict = {}, {}
+                now = 0
         if not label_dict and not pred_dict:
             metrics_scores = metric_cls.calc_scores(pred_dict, label_dict)
         all_scores = defaultdict(float)
