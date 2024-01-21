@@ -1,120 +1,104 @@
-# Configure the task for evaluation
+# Configure the data path for evaluation
 
-server_addr: wulan
-
-home_env:
-  wulan:
-    data_home: /mnt/shared/img_datasets/mmbench_datasets/processed
-  zhongwei:
-    data_home: /share/img_datasets/mmbench_datasets/processed_mmbench_20231120
-  zhongwei2:
-    data_home: /zhipu-data/img_datasets/mmbench_datasets/processed_mmbench_20231120
+params:
+  top_k: 2
+  top_p: 0.4
+  temperature: 0.8
+  repetition_penalty: 1.0
+  decode_strategy: BeamSearchStrategy # BeamSearchStrategy / BaseStrategy
 
 tasks:
   level_1:
     Infer:
-      test_data: /zhipu-data/img_datasets/cleaned_rlhf/raw_data/20231218###test
+      datapath: [/zhipu-data/img_datasets/cleaned_rlhf/raw_data/20231218###test]
+      metrics: []
 
     ScienceQA:
-      train_data: ScienceQA/train###train
-      valid_data: ScienceQA/val###val
-      test_data: ScienceQA/test###test
+      datapath: [ScienceQA/test###test]
+      metrics: []
     
     Visual7W:
-      train_data: Visual7W/train###train
-      valid_data: Visual7W/val###val
-      test_data: Visual7W/test###test
+      datapath: [Visual7W/test###test]
+      metrics: []
     
     OCRVQA:
-      train_data: OCR-VQA/train###train
-      valid_data: OCR-VQA/val###val
-      test_data: OCR-VQA/test###test
+      datapath: [OCR-VQA/test###test]
+      metrics: []
     
     TDIUC:
-      train_data: TDIUC/train###train
-      test_data: TDIUC/val###test
+      datapath: [TDIUC/val###test]
+      metrics: []
     
     TextVQA:
-      train_data: TextVQA/train###train
-      test_data: TextVQA/val###test
-      upload_data: [TextVQA/test]
+      datapath: [TextVQA/val###test,TextVQA/test###upload]
+      metrics: []
       
     GQA:
-      train_data: GQA/train###train
-      valid_data: GQA/val###val
-      test_data: GQA/testdev_balanced###test
+      datapath: [GQA/testdev_balanced###test]
+      metrics: []
     
     NoCaps:
-      test_data: NoCaps/val###test
-    
+      datapath: [NoCaps/val###test]
+      metrics: []
+
     VQAv2:
-      train_data: VQAV2/train###train
-      test_data: VQAV2/val###test
-      upload_data: [VQAV2/test]
+      datapath: [VQAV2/val###test,VQAV2/test###upload]
+      metrics: []
 
     OCR_EN:
-      train_data: TAL_OCR_ENG/test###train
-      test_data: TAL_OCR_ENG/test###test
+      datapath: [TAL_OCR_ENG/test###test]
+      metrics: []
     
     OCR_ZH:
-      train_data: TAL_OCR_CHN/train###train
-      test_data: TAL_OCR_CHN/test###test
+      datapath: [TAL_OCR_CHN/test###test]
+      metrics: []
 
     COCO:
-      train_data: COCO/train###train
-      valid_data: COCO/val###val
-      test_data: COCO/val###test
+      datapath: [COCO/val###test]
+      metrics: []
 
     STVQA:
-      train_data: STVQA/train###train
-      upload_data: [STVQA/test_task_3]
+      datapath: [STVQA/test_task_3]
+      metrics: []
 
     FlickrCap:
-      train_data: FlickrCap/train###train
-      valid_data: FlickrCap/val###val
-      test_data: FlickrCap/test###test
+      datapath: [FlickrCap/test###test]
+      metrics: []
 
     ChartQA:
-      train_data: ChartQA/train###train
-      valid_data: ChartQA/val###val
-      test_data: ChartQA/test###test
+      datapath: [ChartQA/test###test]
+      metrics: []
 
     RefCOCO:
-      train_data: RefCOCO/train###train
-      valid_data: RefCOCO/refcoco-val###val
-      test_data: RefCOCO/test###test
+      datapath: [RefCOCO/refcoco-val###val,RefCOCO/test###test]
+      metrics: []
 
     DocVQA:
-      train_data: DocVQA/train###train
-      valid_data: DocVQA/val###val
-      test_data: DocVQA/test###test
+      datapath: [DocVQA/test###test]
+      metrics: []
 
     VizWizVQA:
-      train_data: VizWiz-VQA/train###train
-      valid_data: VizWiz-VQA/val###val
-      test_data: VizWiz-VQA/test###test
+      datapath: [VizWiz-VQA/test###test]
+      metrics: []
     
     TallyQA:
-      train_data: TallyQA/train###train
-      test_data: TallyQA/test###test
+      datapath: [TallyQA/test###test]
+      metrics: []
     
   level_2:
     OKVQA:
-      train_data: OK-VQA/train###train
-      test_data: OK-VQA/val###test
+      datapath: [OK-VQA/val###test]
+      metrics: []
 
   level_3:
-    HalVQA:
-      train_data: HalVQA/train###train
-      test_data: HalVQA/test###test
-      
     TouchStone:
-      test_data: TouchStone/test###test
+      datapath: [TouchStone/test###upload]
+      metrics: []
 
     TouchStoneChinese:
-      test_data: TouchStone/test-zh###test
+      datapath: [TouchStone/test-zh###upload]
+      metrics: []
     
     AlignMMBench:
-      train_data: AlignMMBench/train###train
-      valid_data: AlignMMBench/valid###valid
-      test_data: AlignMMBench/test###test
+      datapath: [alignmmbench###upload]
+      metrics: []

@@ -13,8 +13,8 @@ from mmbench.common.utils import find_all_files
 
 
 class ItemDataset(Dataset, BaseDataset):
-    def __init__(self, mt, args, data_dir, data_mode, other_attr=[], **kwargs):
-        super().__init__(mt, args, data_mode, other_attr, **kwargs)
+    def __init__(self, mt, args, data_dir, **kwargs):
+        super().__init__(mt, args, **kwargs)
         self.data = self.load_data(data_dir)
         self.image_qa_cache = {} # {uni_qa_key: c_qaid}
     
@@ -31,15 +31,9 @@ class ItemDataset(Dataset, BaseDataset):
                         json_data["image_path"] = os.path.join(jsonl_dir, json_data["image_path"])
                     else:
                         json_data["image_path"] = "<null>"
-                    if self.data_mode == "train":
-                        data.append(json_data)
-                    else:
-                        # inference: val / test
-                        for qa in json_data["json"]:
-                            if "image_path" in json_data:
-                                data.append({"image_path": json_data["image_path"], "json": qa})
-                            else:
-                                data.append({"json": qa})
+                    # inference: val / test
+                    for qa in json_data["json"]:
+                        data.append({"image_path": json_data["image_path"], "json": qa})
         print_rank0(f"find {image_num} image-level samples in {qa_num} qa-level samples in all...")
         # DEBUG-CODE-START
         # These codes are for debugging specific data in s_qids
@@ -69,26 +63,13 @@ class ItemDataset(Dataset, BaseDataset):
         # text
         dialogues = data['json']
         assert len(dialogues) >= 1, f"json length <= 1 in {data}"
-        if self.data_mode == "train":
-            if self.args.train_data_load_mode == "random":
-                dialogues = random.choice(dialogues)
-            elif self.args.train_data_load_mode == "epoch_round":
-                qa_key = f'{data["key"]}'
-                # if not cache, start from a random index
-                load_id = (self.image_qa_cache.get(qa_key, random.randint(0, len(dialogues)-1)-1) + 1) % len(dialogues)
-                self.image_qa_cache[qa_key] = load_id
-                dialogues = dialogues[load_id]
-            else:
-                raise ValueError("Unknown train_data_load_mode: {}, support random / epoch_round".format(self.args.train_data_load_mode))
         uni_key = f'{data["image_path"]}-{dialogues["question_id"]}'
-        text_dict, img = eval(f'self.{dialogues["datatype"]}')(dialogues["metadata"], uni_key, img=img, data_mode=self.data_mode)
+        text_dict, img = eval(f'self.{dialogues["datatype"]}')(
+            dialogues["metadata"], uni_key, img=img)
         img_dict = self.process_img(img)
         if text_dict == None:
             print_all(f"Process text failed. Please check the max_target_length & max_source_length.\n The data is {dialogues['metadata']}", level=logging.WARNING)
             return {}
         # other attr
         ret = {**img_dict, **text_dict, "question_id": str(dialogues["question_id"])}
-        for attr in self.other_attr:
-            if attr in dialogues:
-                ret[attr] = dialogues[attr]
         return ret

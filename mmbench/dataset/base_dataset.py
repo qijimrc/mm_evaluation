@@ -3,15 +3,13 @@ import json
 import random
 from functools import wraps
 
-from sat.helpers import print_rank0
+from sat.helpers import print_rank0, print_all
 from mmbench.common.utils import is_chinese
 
 class BaseDataset(object):
-    def __init__(self, mt, args, data_mode, other_attr=[], custom_functions=dict()) -> None:
+    def __init__(self, mt, args, custom_functions=dict()) -> None:
         self.mt = mt
         self.args = args
-        self.data_mode = data_mode
-        self.other_attr = other_attr
         self.custom_functions = custom_functions
 
         self.img_pad = os.path.join(os.path.dirname(__file__), "assets/no_img.png")
@@ -36,25 +34,22 @@ class BaseDataset(object):
         return img_dict
     
     @custom_func
-    def process_text(self, answer, prompt):
-        return self.mt.text_processor(answer, prompt)
+    def process_text(self, query, history=[]):
+        return self.mt.text_processor(query, history=history)
     
     @custom_func
     def normal_qa(self, metadata, uni_key, **kwargs):
         img = kwargs['img']
-        text_dict = self.process_text(metadata["answer"], metadata["question"])
+        text_dict = self.process_text(metadata["question"], history=[])
         return text_dict, img
 
     @custom_func
     def normal_caption(self, metadata, uni_key, **kwargs):
         img = kwargs['img']
-        if self.args.no_prompt:
-            text_dict = self.process_text(metadata["answer"], "")
-        else:
-            language_zh = is_chinese(metadata["answer"])
-            template = self.templates_zh if language_zh else self.templates_en
-            prompt = random.choice(template["Caption"]).replace('<image>', '')
-            text_dict = self.process_text(metadata["answer"], prompt)
+        language_zh = is_chinese(metadata["answer"])
+        template = self.templates_zh if language_zh else self.templates_en
+        prompt = random.choice(template["Caption"]).replace('<image>', '')
+        text_dict = self.process_text(prompt, history=[])
         return text_dict, img
 
     @custom_func
@@ -75,6 +70,23 @@ class BaseDataset(object):
         prompt = generate_prompt_in_multi_choice(metadata["choices"], metadata["question"])
         answer = chr(ord('A')+metadata["answer"]) if isinstance(metadata["answer"], int) else metadata["answer"]
         text_dict = self.process_text(answer, prompt)
+        return text_dict, img
+    
+    @custom_func
+    def multi_vqa(self, metadata, uni_key, **kwargs):
+        img = kwargs["img"]
+        text_dict = {}
+        try:
+            assert len(metadata["question"]) == len(metadata["answer"]), \
+                f"[{uni_key}]: question and answer should have the same length, but got {len(metadata['question'])} and {len(metadata['answer'])}"
+            vqa_length = len(metadata["question"])
+            assert vqa_length > 0, "[%s]: question and answer should not be empty" % uni_key
+            history = []
+            for i in range(vqa_length-1):
+                history.append((metadata["question"][i], metadata["answer"][i]))
+            text_dict = self.process_text(metadata["question"][-1], history=history)
+        except Exception as e:
+            print_all("[%s]: %s" % (uni_key, e))
         return text_dict, img
     
     @custom_func

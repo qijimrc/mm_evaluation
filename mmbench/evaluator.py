@@ -23,7 +23,7 @@ class Evaluator:
                  custom_functions: dict=dict(),
                  custom_dataset_functions: dict=dict(),
                  cfg_path: str=os.path.dirname(__file__)+'/config.yaml',
-                 server_addr: str=None) -> None:
+                 data_home_dir: str=None) -> None:
         """
         Args:
             custom_cfg_path (str, optional): _description_. Defaults to None.
@@ -32,13 +32,13 @@ class Evaluator:
             cfg_path (str, optional): _description_. Defaults to os.path.dirname(__file__)+'/config.yaml'.
         """
         self.default_cfg = OmegaConf.load(cfg_path)
-        if custom_cfg_path:
-            self._update_params(OmegaConf.load(custom_cfg_path))
-        # check_config(copy.deepcopy(self.default_cfg))
+        self._update_params(OmegaConf.load(custom_cfg_path))
         
-        server_addr = server_addr or self.default_cfg["server_addr"]
         self.mmeval_home = os.environ.get("MMEVAL_HOME", os.path.join(os.path.expanduser('~'), ".mmbench_eval_tmp"))
-        self.data_home_dir = self.default_cfg["home_env"][server_addr]["data_home"]
+        if not os.path.exists(self.mmeval_home):
+            os.mkdir(self.mmeval_home, exist_ok=True)
+            print_rank0(f"Using mmeval home: {self.mmeval_home}")
+        self.data_home_dir = data_home_dir
         
         self.tasks = {
             name: Registry.get_task_class(name)(self.default_cfg["tasks"][level][name], \
@@ -68,49 +68,39 @@ class Evaluator:
         if 'tasks' in custom_params:
             for level_name in custom_params['tasks'].keys():
                 for task_name, params in custom_params['tasks'][level_name].items():
-                    tmp_params = copy.deepcopy(params)
-                    for spec_name in ["data_params", "finetune_params", "eval_params"]:
-                        if spec_name in tmp_params:
-                            for pn, value in tmp_params[spec_name].items():
-                                self.default_cfg['tasks'][level_name][task_name][spec_name][pn] = value
-                        tmp_params.pop(spec_name)
-                    for key, value in tmp_params.items():
-                        self.default_cfg['tasks'][level_name][task_name][key] = value
+                    self.default_cfg["tasks"][level_name][task_name].update(params)
+        if 'params' in custom_params:
+            self.default_cfg["params"].update(custom_params['params'])
 
     def evaluate(self, args, mt, eval_tasks=[]):
         all_scores = {}
+        for k,v in self.default_cfg["params"].items():
+            setattr(args, k, v)
         timestring = datetime.now().strftime("%m-%d-%H-%M")
         args.data_home_dir = self.data_home_dir
         args.save = args.save if hasattr(args, 'save') and args.save else self.mmeval_home
         args.save_result_path = os.path.join(args.save, f'{args.experiment_name}-{timestring}.jsonl')
-        rank = torch.distributed.get_rank(group=mpu.get_data_parallel_group())
+        if not os.path.exists(args.save):
+            print_rank0(f"Create save home: {args.save}")
+            os.makedirs(args.save, exist_ok=True)
+        # start
         failed_tasks = []
         for i, task_name in enumerate(eval_tasks):
             try:
                 c_task = self.tasks[task_name]
                 # reset args & model states
                 args_cp = copy.deepcopy(args)
-                args_cp.iteration = mt.reset_model(c_task)
                 print_rank0(f'Task ({i+1}/{len(eval_tasks)}) begin: {task_name}')
                 # refine ckpt path
-                args_cp.save_details_result_path = os.path.join(args.save, f'{args.experiment_name}_{c_task.task_name}-{timestring}.csv')
-                args_cp.experiment_name = f'{args_cp.experiment_name}_{c_task.task_name}-{timestring}'
-                args_cp.save = os.path.join(args_cp.save, args_cp.experiment_name)
-                if not os.path.exists(args_cp.save):
-                    print_rank0(f"Create save home: {args_cp.save}")
-                    os.makedirs(args_cp.save)
-                # finetune
-                if c_task.need_finetune:
-                    c_task.do_finetune(args_cp, mt)
+                args_cp.save_details_result_path = os.path.join(args.save,
+                                                                f'{args.experiment_name}_{c_task.task_name}-{timestring}.csv')
                 # evaluate
-                if c_task.need_evaluate:
-                    mt.freezen_model()
-                    all_scores[task_name] = c_task.do_evaluate(args_cp, mt)
-                    # save
-                    if rank == 0:
-                        with jsonlines.open(args.save_result_path, mode='a') as fp:
-                            _tmp = {"task": task_name, "results": all_scores[task_name]}
-                            fp.write(_tmp)
+                all_scores[task_name] = c_task.do_evaluate(args_cp, mt)
+                # save
+                if torch.distributed.get_rank(group=mpu.get_data_parallel_group()) == 0:
+                    with jsonlines.open(args.save_result_path, mode='a') as fp:
+                        _tmp = {"task": task_name, "results": all_scores[task_name]}
+                        fp.write(_tmp)
                 print_rank0('-'*80)
                 print_rank0(f'{task_name} results: {all_scores[task_name]}')
                 print_rank0('-'*80)

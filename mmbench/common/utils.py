@@ -47,4 +47,3 @@ def find_all_files(path, suffix=".tar"):
                         target_files.extend([os.path.join(cur_dir,f)]*repeat_nums)
     print_rank0(f'find {len(target_files)} files in all...')
     return target_files
-

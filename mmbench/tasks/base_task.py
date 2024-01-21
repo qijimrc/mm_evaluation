@@ -13,7 +13,6 @@ from torch.nn import CrossEntropyLoss
 
 from sat import mpu
 from sat.helpers import print_rank0, print_all
-from sat.model.mixins import CachedAutoregressiveMixin
 from sat.generation.autoregressive_sampling import filling_sequence, get_masks_and_position_ids_default
 from sat.generation.sampling_strategies import BaseStrategy, BeamSearchStrategy
 from sat.data_utils.webds import MetaDistributedWebDataset
@@ -22,7 +21,7 @@ from mmbench.common.utils import find_all_files
 from mmbench.common.inference import testing_main
 from mmbench.common.training import training_main
 from mmbench.common.global_vars import *
-from mmbench.dataset import ItemDataset, WdsDataset
+from mmbench.dataset import ItemDataset
 
 class BaseTask(object):
     def __init__(self,
@@ -31,17 +30,9 @@ class BaseTask(object):
                  custom_dataset_functions=dict(),
                  image_length=None):
         self.task_cfg = task_cfg
-        self.need_finetune = task_cfg.get('need_finetune', False)
-        self.need_evaluate = task_cfg.get('need_evaluate', False)
-        self.max_source_length = task_cfg["data_params"].get("max_source_length", 256) + image_length
-        self.max_target_length = task_cfg["data_params"].get("max_target_length", 128)
-        self.no_prompt = task_cfg["data_params"].get("no_prompt", False)
-
         self.custom_functions = custom_functions
         self.custom_dataset_functions = custom_dataset_functions
-
-        self.dataloader_mirror = {}
-        self.dataset_mirror = {}
+        self.dataloader_mirror = None
     
     @NotImplementedError
     def calc_scores(self, args, results_total):
@@ -75,83 +66,35 @@ class BaseTask(object):
                 result.append(c_res)
             return pd.DataFrame(result, columns=top_keys + meta_keys, dtype=str)
 
-        if self.mode not in self.dataset_mirror:
-            dataloader = self.dataloader_mirror["val"] if self.mode == "finetune" else self.dataloader_mirror["test"]
-            self.dataset_mirror[self.mode] = get_data(dataloader)
-        mirror_df = self.dataset_mirror[self.mode]
+        mirror_df = get_data(self.dataloader_mirror)
         print_rank0(f'fetch {self.mode} data mirror end.')
         return mirror_df
 
-    def handle_upload_data(self, args, res_df):
-        """convert test results to the format of eval website.
-
-        Args:
-            res_df (pd.DataFrame): two columns
-                question_id (str): quesiton id
-                preds (str): predict results
-        """
-        ret = [{"question_id": row["question_id"], "answer": row["preds"]} for idx, row in res_df.iterrows()]
-        with open(args.save_details_result_path + ".json", "w") as fp:
-            json.dump(ret, fp, indent=4)
-        print_rank0(f'Save results: {args.save_details_result_path + ".json"}')
-
     def handle_metrics(self, args, results_total):
-        question_ids, preds, labels = results_total["question_ids"], results_total["preds"], results_total["labels"]
-        res_df = pd.DataFrame({"question_id": question_ids, "preds": preds, "labels": labels}, dtype=str)
+        question_ids, preds = results_total["question_ids"], results_total["preds"]
+        res_df = pd.DataFrame({"question_id": question_ids, "preds": preds}, dtype=str)
         # post process
         res_df = res_df[res_df["question_id"] != "-1"]
         res_df["preds"] = res_df["preds"].apply(lambda x: x.replace(PAD_STR, ""))
-        if self.mode == "upload":
-            self.handle_upload_data(args, res_df)
-            return {}
-        before_res_len = len(res_df)
         # remove duplicates
+        before_res_len = len(res_df)
         res_df = res_df.drop_duplicates(subset=["question_id"])
         if before_res_len != len(res_df):
             print_rank0(f"Sample nums change after removing duplicates: {before_res_len} -> {len(res_df)}", level=logging.WARNING)
         # get mirror data
         mirror_df = self.fetch_dataset_mirror(args)
-        if self.mode == "test" and not args.use_debug_mode:
+        if not args.use_debug_mode:
             assert len(res_df) == len(mirror_df), f"Sample nums not same in test: {len(res_df)} != {len(mirror_df)}"
         res_df = res_df.merge(mirror_df, on="question_id", how="inner")
-        if self.mode == "test" and hasattr(args, "save_details_results") and args.save_details_results:
+        if self.mode == "upload" or (hasattr(args, "save_details_results") and args.save_details_results):
             res_df.to_csv(args.save_details_result_path, index=None)
             print_rank0(f"Save detail results in {args.save_details_result_path}...")
-        return self.calc_scores(args, res_df)
+        return self.calc_scores(args, res_df) if self.mode != "upload" else {} 
 
     def create_dataset_function(self, mt, path, args):
-        path, data_mode = path.split("###")
-        other_attr = self.other_attr if hasattr(self, "other_attr") else []
-        item_dataset = ItemDataset(mt, args, path, data_mode, other_attr, custom_functions=self.custom_dataset_functions)
-        if args.iterable_dataset:
-            urls = find_all_files(path)
-            web_dataset = WdsDataset(mt, args, data_mode, other_attr)
-            dataset = MetaDistributedWebDataset(urls, web_dataset.process_fn_dataset, args.seed, meta_names=['json'])
-            # create mirror dataset
-            self.dataloader_mirror[data_mode] = item_dataset.data
-        else:
-            dataset = item_dataset
-            self.dataloader_mirror[data_mode] = item_dataset.data
+        dataset = ItemDataset(mt, args, path, custom_functions=self.custom_dataset_functions)
+        self.dataloader_mirror = dataset.data
         return dataset
-    
-    def update_params(self, args, param_types: list):
-        merge_args = copy.deepcopy(vars(args))
-        for param_type in param_types:
-            if hasattr(self.task_cfg, param_type):
-                for key, value in self.task_cfg[param_type].items():
-                    merge_args[key] = value
-        if hasattr(self.task_cfg, "data"):
-            for key, value in self.task_cfg.data.items():
-                if isinstance(value, str):
-                    value = [value]
-                merge_args[key] = []
-                for p in value:
-                    if os.path.exists(p):
-                        tmp_path = p
-                    else:
-                        tmp_path = os.path.join(args.data_home_dir, p)
-                    merge_args[key].append(tmp_path)
-        return argparse.Namespace(**merge_args)
     
     @custom_func
     def collate_fn(self, mt, examples):
@@ -226,48 +169,17 @@ class BaseTask(object):
                     data_b[k] = data_b[k].bfloat16()
         return data_b
 
-    @custom_func
-    def forward_step(self, data_iterator, model, args, timers):
-        # Get the batch.
-        timers('batch generator').start()
-        data_b = self.get_batch(
-            data_iterator, args, timers)
-        timers('batch generator').stop()
-        if data_b is None:
-            return torch.tensor(0, device=args.device), {}
-        labels = data_b.pop('labels')
-        logits = model(**data_b)[0]
-        lm_logits = logits.to(torch.float32)
-        # Shift so that tokens < n predict n
-        shift_labels = labels[..., 1:].contiguous()
-        shift_logits = lm_logits[..., -1-shift_labels.size(-1):-1, :].contiguous()
-        # Flatten the tokens
-        loss_fct = CrossEntropyLoss(ignore_index=-100)
-        loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
-        loss = loss.to(torch.float32)
-
-        return loss, {}
-
-    @custom_func
-    def preprocess_datab_eval(self, data_b):
-        if isinstance(data_b["context_length"], int):
-            context_len = data_b["context_length"]
-        else:
-            context_len = int(data_b['context_length'][0])
-        tokens = data_b['input_ids'][:, :context_len]
-        return data_b, tokens, context_len
-    
     def chat(self, tokens, mt, args, context_len, **kwargs):
         if self.custom_functions.get("chat", None):
-            return self.custom_functions["chat"](mt.model, mt.tokenizer, mt.text_processor_inference, tokens, args, **kwargs)
+            return self.custom_functions["chat"](mt.model, mt.tokenizer, mt.text_processor, tokens, args, **kwargs)
         inputs = tokens.to(mt.model.parameters().__next__().device)[0]
-        if self.max_source_length + self.max_target_length <= len(inputs):
+        if args.max_source_length + args.max_target_length <= len(inputs):
             print_all("[ERROR] Input is too long. Please use the larger max_source_length & max_target_length")
             return PAD_STR
         seq = torch.cat(
-            [inputs, torch.tensor([-1] * (self.max_source_length + self.max_target_length - len(inputs)), device=inputs.device)], dim=0
+            [inputs, torch.tensor([-1] * (args.max_source_length + args.max_target_length - len(inputs)), device=inputs.device)], dim=0
         )
-        if hasattr(args, "use_beamsearch") and args.use_beamsearch:
+        if args.decode_strategy == "BeamSearchStrategy":
             strategy = BeamSearchStrategy(
                 temperature=args.temperature,
                 top_p=args.top_p,
@@ -277,15 +189,17 @@ class BaseTask(object):
                 consider_end=True,
                 repetition_penalty=args.repetition_penalty
             )
-        else:
+        elif args.decode_strategy == "BaseStrategy":
             strategy = BaseStrategy(
                 temperature=args.temperature,
                 top_p=args.top_p,
                 top_k=args.top_k,
                 end_tokens=[mt.tokenizer.eos_token_id]
             )
-        get_func = mt.text_processor_inference.get_func(None, **kwargs) \
-            if hasattr(mt.text_processor_inference, 'get_func') else get_masks_and_position_ids_default
+        else:
+            raise ValueError("Unsupported decode strategy: {}".format(args.decode_strategy))
+        get_func = mt.text_processor.get_func(inputs, **kwargs) \
+            if hasattr(mt.text_processor, 'get_func') else get_masks_and_position_ids_default
         output = filling_sequence(
             mt.model, seq,
             batch_size=1,
@@ -305,90 +219,41 @@ class BaseTask(object):
             data_iterator, args, timers)
         timers('batch generator').stop()
         if data_b is None:
-            return torch.tensor(0, device=args.device), {"question_ids": "-1", "preds": PAD_STR, "labels": PAD_STR}
-        data_b, tokens, context_len = self.preprocess_datab_eval(data_b)
+            return torch.tensor(0, device=args.device), \
+                {"question_ids": "-1", "preds": PAD_STR}
+        tokens = data_b.pop("input_ids")
         question_id = data_b.pop('question_id')[0]
-        labels = data_b.pop('labels')
+        context_len = len(tokens)
 
         pred = self.chat(tokens, mt, args, context_len, **data_b)
-        labels.masked_fill_(labels == -100, mt.tokenizer.pad_token_id)
-        decode_labels = mt.tokenizer.batch_decode(labels, skip_special_tokens=True)
-        metrics = {"question_ids": str(question_id), "preds": str(pred), "labels": str(decode_labels)}
+        metrics = {"question_ids": str(question_id), "preds": str(pred)}
         return torch.tensor(0, device=args.device), metrics
     
-    def do_finetune(self, args, mt):
-        finetune_args = self.update_params(args, param_types=["finetune_params", "eval_params", "data_params"])
-        if not ("train_data" in finetune_args and finetune_args.train_data):
-            raise ValueError(f"[{self.task_name}]: train_data is required for finetuning.")
-        # train
-        self.mode = "finetune"
-        finetune_args.mode = "finetune"
-        print_rank0(f"Final training args: {finetune_args}")
-        training_main(finetune_args,
-                      model_cls=mt.model,
-                      forward_step_function=self.forward_step,
-                      forward_step_eval=self.partial_wo(self.forward_step_eval, mt),
-                      create_dataset_function=self.partial_wo(self.create_dataset_function, mt),
-                      handle_metrics_function=self.partial_wo(self.handle_metrics, finetune_args),
-                      collate_fn=self.partial_wo(self.collate_fn, mt))
-
     def do_evaluate(self, args, mt) -> dict:
-        test_args = self.update_params(args, param_types=["eval_params", "data_params"])
-        if not ("test_data" in test_args and test_args.test_data):
-            raise ValueError(f"[{self.task_name}]: test_data is required for testing.")
-        test_args.train_data = None
-        test_args.valid_data = None
-        # test
-        self.mode = "test"
-        test_args.mode = "inference"
-        test_args.do_test = True
-
-        mt.model.add_mixin('auto-regressive', CachedAutoregressiveMixin())
-        # handle test data
-        if hasattr(test_args, 'test_data') and test_args.test_data is not None:
-            test_args.strict_eval = True
-            if test_args.strict_eval and test_args.iterable_dataset:
-                self.create_dataset_function(mt, test_args.test_data[0], test_args)
-                test_args.eval_iters = len(self.dataloader_mirror["test"])
-                test_args.strict_eval = False
-                print_rank0(f'Due to strict_eval and iterable_dataset, resize eval_iters: \
-                    {test_args.eval_iters}', level=logging.WARNING)
-            # for debug only
-            if hasattr(args, "use_debug_mode") and args.use_debug_mode:
-                test_args.strict_eval = False
-                test_args.eval_iters = 200
-                test_args.eval_interval = 1
-            test_args.load = test_args.save if self.need_finetune else None
-            _, metrics = testing_main(test_args,
+        args.mode = "inference"
+        # for debug only
+        if hasattr(args, "use_debug_mode") and args.use_debug_mode:
+            args.strict_eval = False
+            args.eval_iters = 20
+            args.eval_interval = 1
+        else:
+            args.do_test = True
+            args.strict_eval = True
+        # update task params into args
+        for k,v in self.task_cfg.items():
+            setattr(args, k, v)
+        for datapath in args.datapath:
+            datapath, self.mode = datapath.split("###")
+            args.test_data = datapath if os.path.exists(datapath) else \
+                os.path.join(args.data_home_dir, datapath)
+            assert os.path.exists(args.test_data), f"{args.test_data} does not exist."
+            args.test_data = [args.test_data]
+            print_rank0(f"Start {datapath}...")
+            _, metrics = testing_main(args,
                                         model=mt.model,
                                         forward_step_eval=self.partial_wo(self.forward_step_eval, mt),
                                         create_dataset_function=self.partial_wo(self.create_dataset_function, mt),
-                                        handle_metrics_function=self.partial_wo(self.handle_metrics, test_args),
+                                        handle_metrics_function=self.partial_wo(self.handle_metrics, args),
                                         collate_fn=self.partial_wo(self.collate_fn, mt))
-
-        # handle upload data
-        if hasattr(test_args, 'upload_data') and test_args.upload_data:
-            self.mode = "upload"
-            print_rank0(f"Find {len(test_args.upload_data)} no-answer test datasets.")
-            for upload_data in test_args.upload_data:
-                print_rank0(f"Start {upload_data}...")
-                test_args.test_data = [f'{upload_data}###upload']
-                test_args.save_details_result_path = test_args.save_details_result_path.split('.')[0] + '-' +\
-                                                        os.path.basename(upload_data)
-                if test_args.iterable_dataset:
-                    self.create_dataset_function(mt, test_args.test_data[0], test_args)
-                    test_args.eval_iters = len(self.dataloader_mirror["upload"])
-                    test_args.strict_eval = False
-                    print_rank0(f'Due to strict_eval and iterable_dataset, resize eval_iters: \
-                        {test_args.eval_iters}', level=logging.WARNING)
-                # start
-                print_rank0(f"Final test args: {test_args}")
-                testing_main(test_args,
-                            model=mt.model,
-                            forward_step_eval=self.partial_wo(self.forward_step_eval, mt),
-                            create_dataset_function=self.partial_wo(self.create_dataset_function, mt),
-                            handle_metrics_function=self.partial_wo(self.handle_metrics, test_args),
-                            collate_fn=self.partial_wo(self.collate_fn, mt))
-                print_rank0(f"End {upload_data}...")
-        mt.model.del_mixin('auto-regressive')
+            print_rank0(f"End {datapath}...")
         return metrics
