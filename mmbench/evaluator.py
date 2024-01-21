@@ -15,8 +15,6 @@ from omegaconf import OmegaConf
 
 from datetime import datetime
 from mmbench.common.registry import Registry
-from mmbench.common.utils import check_config
-
 
 class Evaluator:
     def __init__(self,

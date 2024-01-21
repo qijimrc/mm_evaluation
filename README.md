@@ -76,6 +76,9 @@ For the sake of readability, some details have been omitted.
     └── evaluator.py        # main entry
 ```
 
+## Leaderboard
+
+
 ## Usage
 
 ### Install
@@ -120,13 +123,3 @@ You can customized the following functions in the `mmbench/tasks/base_task.py`
 - collate_fn
 - forward_step
 - forward_step_eval
-
-## Leaderboard
-
-
-| **Model**                        | **level_1** |           |          |  **level_2**|           |          | **level_3** |           |          |  **AVG**      |
-|:-------------------------------- | :---------- | :---------|:---------| :---------- | :---------|:---------| :---------- | :---------|:---------| :------------ |
-|                                  |   *VQAv2*   |           |          |             |           |          |  *HalVQA*   |           |          |               |
-| BLIP2                            |             |           |          |             |           |          |             |           |          |               |
-| LLaVA                            |             |           |          |             |           |          |             |           |          |               |
-| VisualGLM-6B                     |             |           |          |             |           |          |             |           |          |               |

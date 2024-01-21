@@ -48,29 +48,3 @@ def find_all_files(path, suffix=".tar"):
     print_rank0(f'find {len(target_files)} files in all...')
     return target_files
 
-def check_config(config):
-    """
-    Args:
-        config (_type_): config.yaml
-    """
-    for level_name, level_value in config["tasks"].items():
-        for task_name, task_value in level_value.items():
-            task_cfg = {}
-            for key in ["data", "data_params", "finetune_params", "eval_params"]:
-                task_cfg.update(task_value[key])
-                task_value.pop(key)
-            for key, value in task_value.items():
-                task_cfg[key] = value
-            # check data
-            if task_cfg.get("eval_interval", None) != 0 and \
-                task_cfg.get("eval_interval", None) != None and \
-                    task_cfg.get("split", [1,1,1]) == "1" and \
-                    task_cfg.get("valid_data", None) is None:
-                raise ValueError(f"{task_name}/{level_name} has eval_interval but no valid_data")
-            if task_cfg.get("need_finetune", False) and \
-                task_cfg.get("train_data", None) is None:
-                raise ValueError(f"{task_name}/{level_name} has need_finetune but no train_data")
-            if task_cfg.get("need_evaluate", False) and \
-                task_cfg.get("test_data", None) is None:
-                raise ValueError(f"{task_name}/{level_name} has need_evaluate but no test_data")
-            # check params
