@@ -2,20 +2,24 @@ import re
 from sklearn.metrics import accuracy_score, ndcg_score
 import textdistance
 from nltk.translate.bleu_score import sentence_bleu
+import numpy as np
 
 from mmbench.common.example import Example
 from mmbench.common.registry import Registry
 from mmbench.metrics.base_metric import BaseMetric
 from typing import List, Dict, Tuple
 
+MANIPULATIONS = [
+    'GROUNDING', 'OCR', 'CROP_AND_ZOOMIN', 'CALCULATE'
+]
+
 @Registry.register_metric('COMScore')
 class COMScore(BaseMetric):
     def __init__(self) -> None:
-        self.manipulations = [
-            'GROUNDING', 'OCR', 'CROP_AND_ZOOMIN', 'CALCULATE'
-        ]
+        pass
 
-    def _normalize_frags(cls, bbxs_str_list):
+    @classmethod
+    def _normalize_frags(self, bbxs_str_list):
         res = []
         for bbxs_str in bbxs_str_list:
             try:
@@ -25,7 +29,8 @@ class COMScore(BaseMetric):
             res.append(bbxs_str)
         return res
     
-    def _frag2ids(cls, frags1, frags2):
+    @classmethod
+    def _frag2ids(self, frags1, frags2):
         vocab = {fr:i for i,fr in enumerate(set(frags1).union(frags2))}
         # seq1 = [ord('0')+vocab[fr] for fr in frags1]
         # seq2 = [ord('0')+vocab[fr] for fr in frags2]
@@ -48,23 +53,26 @@ class COMScore(BaseMetric):
         if len(trues) == 0:
             return 0.0
         
-        explain_score, explain_sum = 0.0, 0.0
+        explain_scores, ans_scores, frags_scores, bleus_scores = [], [], [], []
         if calc_explain:
-            ndcg_ptr = re.compile('({MPS}|\[[\[\]\d\,\s]{0,100}\])'.format(MPS='|'.join(cls.manipulations)))
+            ndcg_ptr = re.compile('({MPS}|'.format(MPS='|'.join(MANIPULATIONS)) + '\[[\[\]\d\,\s]{0,100}\])')
             for (expl_g, ans_g), (expl_p, ans_p)  in zip(trues, preds):
-                frags_g = cls._normalize_frags(ndcg_ptr.findall(expl_g))
-                frags_p = cls._normalize_frags(ndcg_ptr.findall(expl_p))
-                seq1, seq2 = cls._frag2ids(frags_g, frags_p)
-                score_frags = textdistance.levenshtein(seq1, seq2) / max(len(seq1), len(seq2))
+                frags_g = COMScore._normalize_frags(ndcg_ptr.findall(expl_g))
+                frags_p = COMScore._normalize_frags(ndcg_ptr.findall(expl_p))
+                seq1, seq2 = COMScore._frag2ids(frags_g, frags_p)
+                score_frags = textdistance.levenshtein(seq1, seq2) / max(1, max(len(seq1), len(seq2)))
                 score_txt = sentence_bleu([expl_g.split()], expl_p.split())
-                explain_sum += score_frags * score_txt
-            explain_score = explain_sum / len(trues)
+                frags_scores.append(score_frags)
+                bleus_scores.append(score_txt)
+                explain_scores.append([score_frags, score_txt])
+            explain_score_avg = np.mean([sfr*stx for sfr, stx in explain_scores])
 
         ans_score = 0.0
         true_anss, pred_anss = [], []
         for (expl_g, ans_g), (expl_p, ans_p)  in zip(trues, preds):
             true_anss.append(ans_g)
             pred_anss.append(ans_p)
-        ans_score = accuracy_score(trues, preds)
+        ans_score_avg = accuracy_score(true_anss, pred_anss)
+        ans_scores = (np.array(true_anss) == np.array(pred_anss)).astype(int).tolist()
 
-        return {'explain_score': explain_score, 'ans_score':ans_score}
+        return {'explanation_scores': explain_scores, 'ans_scores': ans_scores, 'explain_score_avg': explain_score_avg, 'ans_score_avg':ans_score_avg}
