@@ -361,8 +361,9 @@ class BaseTask(object):
                 test_args.test_data = [f'{upload_data}###upload']
                 # test_args.save_details_result_path = test_args.save_details_result_path.split('.')[0] + '-' +\
                 #                                         os.path.basename(upload_data)
-                test_args.save_details_result_path = '.'.join(test_args.save_details_result_path.split('.')[:-1]) + '-' +\
-                                                        os.path.basename(upload_data)
+                from pathlib import Path
+                res_path = Path(test_args.save_details_result_path)
+                test_args.save_details_result_path = str(res_path.parent/f"{res_path.stem}-{os.path.basename(upload_data)}")
                 if test_args.iterable_dataset:
                     self.create_dataset_function(mt, test_args.test_data[0], test_args)
                     test_args.eval_iters = len(self.dataloader_mirror["upload"])

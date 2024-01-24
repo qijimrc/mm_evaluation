@@ -1,6 +1,6 @@
 # Configure the task for evaluation
 
-server_addr: zhongwei
+server_addr: wulan
 
 home_env:
   ningxia:
@@ -530,6 +530,33 @@ tasks:
     MMVet:
       data:
         upload_data: [processed/MM-Vet]
+      need_finetune: false
+      need_evaluate: true
+      data_params:
+        max_source_length: 1625
+        max_target_length: 423
+        iterable_dataset: false
+        block_size: 500
+      finetune_params:
+        log_interval: 20
+        train_iters: 500
+        block_size: 500
+        resume_dataloader: true
+        lr_decay_style: cosine
+        warmup: 0.02
+        save_interval: 500
+        split: "1"
+      eval_params:
+        eval_interval: 0
+        block_size: 500
+        eval_batch_size: 1
+        top_k: 10
+        top_p: 0.4
+        temperature: 0.8
+
+    POPE:
+      data:
+        test_data: processed/POPE/adversarial###test
       need_finetune: false
       need_evaluate: true
       data_params:
