@@ -169,10 +169,11 @@ class BaseTask(object):
                     data_b[k] = data_b[k].bfloat16()
         return data_b
 
-    def chat(self, tokens, mt, args, context_len, **kwargs):
+    def chat(self, tokens, mt, args, **kwargs):
         if self.custom_functions.get("chat", None):
             return self.custom_functions["chat"](mt.model, mt.tokenizer, mt.text_processor, tokens, args, **kwargs)
         inputs = tokens.to(mt.model.parameters().__next__().device)[0]
+        context_len = len(inputs)
         if args.max_source_length + args.max_target_length <= len(inputs):
             print_all("[ERROR] Input is too long. Please use the larger max_source_length & max_target_length")
             return PAD_STR
@@ -223,10 +224,10 @@ class BaseTask(object):
                 {"question_ids": "-1", "preds": PAD_STR}
         tokens = data_b.pop("input_ids")
         question_id = data_b.pop('question_id')[0]
-        context_len = len(tokens)
 
-        pred = self.chat(tokens, mt, args, context_len, **data_b)
+        pred = self.chat(tokens, mt, args, **data_b)
         metrics = {"question_ids": str(question_id), "preds": str(pred)}
+        print_rank0(str(metrics))
         return torch.tensor(0, device=args.device), metrics
     
     def do_evaluate(self, args, mt) -> dict:
