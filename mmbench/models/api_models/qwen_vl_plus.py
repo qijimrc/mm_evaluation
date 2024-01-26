@@ -95,7 +95,7 @@ if __name__ == '__main__':
     from pdb import set_trace as st
     model = QwenVLPlus(model='qwen-vl-plus')
     model = QwenVLPlus(model='qwen-vl-max')
-    # export DASHSCOPE_API_KEY='sk-a07ad871a3614cae948f22e2b3691a1c'
+    
     resp = model.generate('/share/home/chengyean/evaluation/data/dummy_example/image.png', 
                           prompt='What does this image imply?',)
     print(resp)
