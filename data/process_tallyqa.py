@@ -11,10 +11,10 @@ from utils import get_image_bytes, save_data
 DATASET_NAWE = "TallyQA"
 
 def process_data(root_dir, mode):
-    filename = os.path.join(root_dir, f"TallyQA/{mode}.json")
-    img_dir_vg = "/nxchinamobile2/shared/img_datasets/VG_100K_images"
-    img_dir_coco = '/nxchinamobile2/shared/img_datasets/MSCOCO/MSCOCO2014'
-    save_dir = os.path.join(root_dir, f"processed/TallyQA/{mode}")
+    filename = os.path.join(root_dir, f"raw/TallyVQA/{mode}.json")
+    img_dir_vg = "/mnt/shared/img_datasets/VG_100K_images"
+    img_dir_coco = '/mnt/shared//img_datasets/MSCOCO/MSCOCO2014'
+    save_dir = os.path.join(root_dir, f"processed/TallyQA_with_qtype/{mode}")
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     with open(filename, "r", encoding="utf-8") as fp:
@@ -33,12 +33,16 @@ def process_data(root_dir, mode):
             drop_num += 1
         if image_path not in all_results:
             all_results[image_path] = []
+        question_type = None
+        if mode == 'test':
+            question_type = 'simple' if c_data.get('issimple', None) == True else 'complex'
         c_data = {
             "datatype": "normal_qa",
             "question_id": c_data["question_id"],
             "metadata": {
                 "question": c_data["question"],
-                "answer": c_data["answer"]
+                "answer": c_data["answer"],
+                "question_type": question_type
             }
         }
         all_results[image_path].append(c_data)
@@ -50,7 +54,7 @@ def process_data(root_dir, mode):
     print(f"Save: {image_num} images, {item_num} samples. Drop: {drop_num} samples")
 
 if __name__ == "__main__":
-    root_dir = "/nxchinamobile2/shared/mmbench_datasets"
-    for mode in ['train', 'test']:
+    root_dir = "/mnt/shared/img_datasets/mmbench_datasets"
+    for mode in ['test']:
         print(f"process {mode}.")
         process_data(root_dir, mode)
