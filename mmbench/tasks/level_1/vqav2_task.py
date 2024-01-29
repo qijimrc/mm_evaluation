@@ -1,5 +1,4 @@
 from mmbench.common.registry import Registry
-from mmbench.common.example import Example
 from mmbench.tasks.base_task import BaseTask
 from typing import Any, Dict, List
 import os

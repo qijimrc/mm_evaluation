@@ -1,25 +1,11 @@
 import os
-import copy
-import json
 import torch
 import logging
-import argparse
-import numpy as np
 import pandas as pd
 
-from functools import partial, wraps
-from collections import defaultdict
-from torch.nn import CrossEntropyLoss
+from sat.helpers import print_rank0
 
-from sat import mpu
-from sat.helpers import print_rank0, print_all
-from sat.generation.autoregressive_sampling import filling_sequence, get_masks_and_position_ids_default
-from sat.generation.sampling_strategies import BaseStrategy, BeamSearchStrategy
-from sat.data_utils.webds import MetaDistributedWebDataset
-
-from mmbench.common.utils import find_all_files
-from mmbench.common.inference import testing_main
-from mmbench.common.training import training_main
+from mmbench.common.inference import inference_main
 from mmbench.common.global_vars import *
 from mmbench.dataset import ItemDataset
 
@@ -33,23 +19,19 @@ class BaseTask(object):
         self.custom_functions = custom_functions
         self.custom_dataset_functions = custom_dataset_functions
         self.dataloader_mirror = None
+
+    def print_info(self, print_str, add_sep_lines=False, sep_char='#'):
+        print_items = [self.eval_model_name]
+        if self.eval_task_name:
+            print_items.append(self.eval_task_name)
+        print_str = f"[{'-'.join(print_items)}] {print_str}"
+        if add_sep_lines:
+            print_str = f"{sep_char * 80}\n{print_str}\n{sep_char * 80}"
+        print_rank0(print_str)
     
     @NotImplementedError
     def calc_scores(self, args, results_total):
         pass
-
-    def custom_func(func):
-        @wraps(func)
-        def new_func(self, *args, **kwargs):
-            if self.custom_functions.get(func.__name__, None):
-                return self.custom_functions[func.__name__](*args, **kwargs)
-            return func(self, *args, **kwargs)
-        return new_func
-
-    def partial_wo(self, func, *args, **kwargs):
-        if self.custom_functions.get(func.__name__, None):
-            return func
-        return partial(func, *args, **kwargs)
 
     def fetch_dataset_mirror(self, args):
         """save all data to pd.DataFrame for computing metric scores
@@ -70,8 +52,8 @@ class BaseTask(object):
         print_rank0(f'fetch {self.mode} data mirror end.')
         return mirror_df
 
-    def handle_metrics(self, args, results_total):
-        question_ids, preds = results_total["question_ids"], results_total["preds"]
+    def compute_metrics(self, args, model_results):
+        question_ids, preds = model_results["question_ids"], model_results["preds"]
         res_df = pd.DataFrame({"question_id": question_ids, "preds": preds}, dtype=str)
         # post process
         res_df = res_df[res_df["question_id"] != "-1"]
@@ -91,170 +73,38 @@ class BaseTask(object):
             print_rank0(f"Save detail results in {args.save_details_result_path}...")
         return self.calc_scores(args, res_df) if self.mode != "upload" else {} 
 
-    def create_dataset_function(self, mt, path, args):
-        dataset = ItemDataset(mt, args, path, custom_functions=self.custom_dataset_functions)
+    def collate_fn(self, all_examples):
+        return all_examples
+
+    def make_dataloader(self, args, path):
+        dataset = ItemDataset(args, path, custom_functions=self.custom_dataset_functions)
         self.dataloader_mirror = dataset.data
-        return dataset
+        # dataloader
+        dataloader = torch.utils.data.DataLoader(dataset,
+                                                num_workers=0, # args.num_workers
+                                                pin_memory=True,
+                                                collate_fn=self.collate_fn
+                                                )
+        return dataloader
     
-    @custom_func
-    def collate_fn(self, mt, examples):
-        examples = [ex for ex in examples if len(ex) > 0] # drop {}
-        if len(examples) == 0:
-            return {}
-        for example in examples:
-            for k in example:
-                if isinstance(example[k], list):
-                    example[k] = torch.tensor(example[k])
-                elif isinstance(example[k], np.ndarray):
-                    example[k] = torch.from_numpy(example[k])
-        img_args = {}
-        tmp_example = examples[0]
-        for k in tmp_example['vision']:
-            if type(tmp_example['vision'][k]) is torch.Tensor:
-                img_args['vision_'+k] = torch.cat([example['vision'][k] for example in examples])
-            else:
-                img_args['vision_'+k] = example['vision'][k]
-        if mt.cross_image_processor is not None:
-            img_args.update({'cross_'+k: torch.cat([example['cross'][k] for example in examples]) if type(example['cross'][k]) is torch.Tensor else example['cross'][k] for k in example['cross']})
-        for example in examples:
-            example.pop('vision')
-            if 'cross' in example:
-                example.pop('cross')
-
-        model_args = {}
-        tmp_example = examples[0]
-        for k in tmp_example:
-            if type(tmp_example[k]) is torch.Tensor:
-                model_args[k] = torch.cat([example[k] for example in examples])
-            elif isinstance(tmp_example[k], str):
-                model_args[k] = [example[k] for example in examples]
-            else:
-                model_args[k] = tmp_example[k]
-        model_args.update(img_args)
-        return model_args
-
-    def broadcast_auto(self, data_dict):
-        type2list = defaultdict(list)
-        other = []
-        for k in data_dict:
-            if type(data_dict[k]) is torch.Tensor:
-                type2list[data_dict[k].dtype].append(k)
-            else:
-                other.append(k)
-        new_data = {}
-        for k in type2list:
-            new_data.update(mpu.broadcast_data(type2list[k], data_dict, k))
-        for k in other:
-            new_data[k] = data_dict[k]
-        return new_data
-    
-    def get_batch(self, data_iterator, args, timers):
-        # Broadcast data.
-        timers('data loader').start()
-        if data_iterator is not None:
-            data = next(data_iterator)
-            if len(data) == 0:
-                timers('data loader').stop()
-                return None
-        else:
-            timers('data loader').stop()
-            return None
-        timers('data loader').stop()
-        data_b = self.broadcast_auto(data)
-        for k in data_b:
-            if type(data_b[k]) is torch.Tensor and data_b[k].dtype is not torch.int32 and data_b[k].dtype is not torch.long:
-                if args.fp16:
-                    data_b[k] = data_b[k].half()
-                elif args.bf16:
-                    data_b[k] = data_b[k].bfloat16()
-        return data_b
-
-    def chat(self, tokens, mt, args, **kwargs):
-        if self.custom_functions.get("chat", None):
-            return self.custom_functions["chat"](mt.model, mt.tokenizer, mt.text_processor, tokens, args, **kwargs)
-        inputs = tokens.to(mt.model.parameters().__next__().device)[0]
-        context_len = len(inputs)
-        if args.max_source_length + args.max_target_length <= len(inputs):
-            print_all("[ERROR] Input is too long. Please use the larger max_source_length & max_target_length")
-            return PAD_STR
-        seq = torch.cat(
-            [inputs, torch.tensor([-1] * (args.max_source_length + args.max_target_length - len(inputs)), device=inputs.device)], dim=0
-        )
-        if args.decode_strategy == "BeamSearchStrategy":
-            strategy = BeamSearchStrategy(
-                temperature=args.temperature,
-                top_p=args.top_p,
-                top_k=args.top_k,
-                end_tokens=[mt.tokenizer.eos_token_id],
-                num_beams=args.num_beams,
-                consider_end=True,
-                repetition_penalty=args.repetition_penalty
-            )
-        elif args.decode_strategy == "BaseStrategy":
-            strategy = BaseStrategy(
-                temperature=args.temperature,
-                top_p=args.top_p,
-                top_k=args.top_k,
-                end_tokens=[mt.tokenizer.eos_token_id]
-            )
-        else:
-            raise ValueError("Unsupported decode strategy: {}".format(args.decode_strategy))
-        get_func = mt.text_processor.get_func(inputs, **kwargs) \
-            if hasattr(mt.text_processor, 'get_func') else get_masks_and_position_ids_default
-        output = filling_sequence(
-            mt.model, seq,
-            batch_size=1,
-            strategy=strategy,
-            get_masks_and_position_ids=get_func,
-            **kwargs
-        )[0]  # drop memory
-        output = output[0][context_len:].unsqueeze(0)
-        pred = mt.tokenizer.batch_decode(output, skip_special_tokens=True)[0].strip()
-        return pred
-
-    @custom_func
-    def forward_step_eval(self, mt, data_iterator, model, args, timers):
-        # Get the batch.
-        timers('batch generator').start()
-        data_b = self.get_batch(
-            data_iterator, args, timers)
-        timers('batch generator').stop()
-        if data_b is None:
-            return torch.tensor(0, device=args.device), \
-                {"question_ids": "-1", "preds": PAD_STR}
-        tokens = data_b.pop("input_ids")
-        question_id = data_b.pop('question_id')[0]
-
-        pred = self.chat(tokens, mt, args, **data_b)
-        metrics = {"question_ids": str(question_id), "preds": str(pred)}
-        print_rank0(str(metrics))
-        return torch.tensor(0, device=args.device), metrics
-    
-    def do_evaluate(self, args, mt) -> dict:
-        args.mode = "inference"
-        # for debug only
-        if hasattr(args, "use_debug_mode") and args.use_debug_mode:
-            args.strict_eval = False
-            args.eval_iters = 20
-            args.eval_interval = 1
-        else:
-            args.do_test = True
-            args.strict_eval = True
+    def do_evaluate(self, args, model_cls) -> dict:
+        self.eval_task_name = args.eval_task_name
+        self.eval_model_name = args.eval_model_name
         # update task params into args
         for k,v in self.task_cfg.items():
             setattr(args, k, v)
+        # run
+        task_scores = {}
         for datapath in args.datapath:
             datapath, self.mode = datapath.split("###")
-            args.test_data = datapath if os.path.exists(datapath) else \
+            datapath = datapath if os.path.exists(datapath) else \
                 os.path.join(args.data_home_dir, datapath)
-            assert os.path.exists(args.test_data), f"{args.test_data} does not exist."
-            args.test_data = [args.test_data]
-            print_rank0(f"Start {datapath}...")
-            _, metrics = testing_main(args,
-                                        model=mt.model,
-                                        forward_step_eval=self.partial_wo(self.forward_step_eval, mt),
-                                        create_dataset_function=self.partial_wo(self.create_dataset_function, mt),
-                                        handle_metrics_function=self.partial_wo(self.handle_metrics, args),
-                                        collate_fn=self.partial_wo(self.collate_fn, mt))
-            print_rank0(f"End {datapath}...")
-        return metrics
+            dataloader = self.make_dataloader(args, datapath)
+            self.print_info(f"Start {datapath}...")
+            # fetch model results
+            model_results = inference_main(args, dataloader, model_cls)
+            if args.rank == 0:
+                # compute metrics
+                task_scores[datapath] = self.compute_metrics(args, model_results)
+            self.print_info(f"End {datapath}...")
+        return task_scores

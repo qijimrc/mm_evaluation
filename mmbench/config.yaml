@@ -1,12 +1,5 @@
 # Configure the data path for evaluation
 
-params:
-  top_k: 2
-  top_p: 0.4
-  temperature: 0.8
-  repetition_penalty: 1.0
-  decode_strategy: BeamSearchStrategy # BeamSearchStrategy / BaseStrategy
-
 tasks:
   level_1:
     Infer:

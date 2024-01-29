@@ -6,7 +6,6 @@ from mmbench.metrics.pycocoevalcap.rouge.rouge import Rouge
 from mmbench.metrics.pycocoevalcap.cider.cider import Cider
 from mmbench.metrics.pycocoevalcap.spice.spice import Spice
 from typing import List, Dict
-from mmbench.common.example import Example
 from mmbench.common.registry import Registry
 from mmbench.metrics.base_metric import BaseMetric
 

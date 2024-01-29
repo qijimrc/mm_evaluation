@@ -13,10 +13,10 @@ from mmbench.common.utils import find_all_files
 
 
 class ItemDataset(Dataset, BaseDataset):
-    def __init__(self, mt, args, data_dir, **kwargs):
-        super().__init__(mt, args, **kwargs)
+    def __init__(self, args, data_dir, **kwargs):
+        super().__init__(args, **kwargs)
         self.data = self.load_data(data_dir)
-        self.image_qa_cache = {} # {uni_qa_key: c_qaid}
+        self.data_indices = self.split_data(args)
     
     def load_data(self, data_dir):
         all_jsonlines = find_all_files(data_dir, suffix=".jsonl")
@@ -34,7 +34,7 @@ class ItemDataset(Dataset, BaseDataset):
                     # inference: val / test
                     for qa in json_data["json"]:
                         data.append({"image_path": json_data["image_path"], "json": qa})
-        print_rank0(f"find {image_num} image-level samples in {qa_num} qa-level samples in all...")
+        print_rank0(f"Find {image_num} image-level samples in {qa_num} qa-level samples in all...")
         # DEBUG-CODE-START
         # These codes are for debugging specific data in s_qids
         # s_qids = set()
@@ -45,31 +45,42 @@ class ItemDataset(Dataset, BaseDataset):
         # data = new_data
         # DEBUG-CODE-END
         return data
+
+    def split_data(self, args):
+        rank = args.rank
+        world_size = args.world_size
+        # add padding data
+        if len(self.data) % world_size == 0:
+            pad_data_len = 0
+        else:
+            pad_data_len = (len(self.data) // world_size + 1) * world_size - len(self.data)
+        # split data
+        distributed_data_indices = []
+        for i in range(len(self.data) + pad_data_len):
+            if i % world_size == rank:
+                distributed_data_indices.append(i % len(self.data))
+        return distributed_data_indices
     
     def __len__(self):
-        return len(self.data)
+        return len(self.data_indices)
 
     def __getitem__(self, index):
-        data = self.data[index]
+        data = self.data[self.data_indices[index]]
         # img
-        try:
-            if 'image_path' in data and not data["image_path"].startswith("<null>"):
-                img = Image.open(data["image_path"]).convert('RGB')
-            else:
-                img = Image.open(self.img_pad).convert('RGB')
-        except Exception as e:
-            print_all(e, level=logging.WARNING)
-            return {}
+        if 'image_path' in data and not data["image_path"].startswith("<null>"):
+            img_path = data["image_path"]
+        else:
+            img_path = None
         # text
         dialogues = data['json']
-        assert len(dialogues) >= 1, f"json length <= 1 in {data}"
         uni_key = f'{data["image_path"]}-{dialogues["question_id"]}'
-        text_dict, img = eval(f'self.{dialogues["datatype"]}')(
-            dialogues["metadata"], uni_key, img=img)
-        img_dict = self.process_img(img)
-        if text_dict == None:
-            print_all(f"Process text failed. Please check the max_target_length & max_source_length.\n The data is {dialogues['metadata']}", level=logging.WARNING)
-            return {}
+        question, history = eval(f'self.{dialogues["datatype"]}')(
+            dialogues["metadata"], uni_key)
         # other attr
-        ret = {**img_dict, **text_dict, "question_id": str(dialogues["question_id"])}
+        ret = {
+            "question_id": str(dialogues["question_id"]),
+            "image_path": img_path,
+            "question": question,
+            "history": history,
+        }
         return ret

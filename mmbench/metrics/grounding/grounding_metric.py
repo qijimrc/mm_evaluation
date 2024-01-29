@@ -1,6 +1,5 @@
 from typing import Any
 from typing import List, Dict
-from mmbench.common.example import Example
 from mmbench.common.registry import Registry
 from mmbench.metrics.base_metric import BaseMetric
 from mmbench.metrics.grounding.utils import box_iou

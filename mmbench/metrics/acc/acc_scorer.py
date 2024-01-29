@@ -1,6 +1,5 @@
 from sklearn.metrics import accuracy_score
 
-from mmbench.common.example import Example
 from mmbench.common.registry import Registry
 from mmbench.metrics.base_metric import BaseMetric
 from typing import List, Dict

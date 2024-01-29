@@ -1,4 +1,3 @@
-from mmbench.common.example import Example
 from typing import Any, List, Dict
 
 class BaseMetric:

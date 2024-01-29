@@ -1,6 +1,5 @@
 import os, json
 from typing import Any
-from mmbench.common.example import Example
 from mmbench.common.registry import Registry
 from mmbench.metrics.base_metric import BaseMetric
 

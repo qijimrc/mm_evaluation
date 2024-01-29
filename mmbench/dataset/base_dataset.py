@@ -7,8 +7,7 @@ from sat.helpers import print_rank0, print_all
 from mmbench.common.utils import is_chinese
 
 class BaseDataset(object):
-    def __init__(self, mt, args, custom_functions=dict()) -> None:
-        self.mt = mt
+    def __init__(self, args, custom_functions=dict()) -> None:
         self.args = args
         self.custom_functions = custom_functions
 
@@ -27,67 +26,41 @@ class BaseDataset(object):
         return new_func
     
     @custom_func
-    def process_img(self, img):
-        img_dict = {'vision': self.mt.image_processor(img)}
-        if self.mt.cross_image_processor:
-            img_dict.update({'cross': self.mt.cross_image_processor(img)})
-        return img_dict
-    
-    @custom_func
-    def process_text(self, query, history=[]):
-        return self.mt.text_processor(query, history=history)
-    
-    @custom_func
-    def normal_qa(self, metadata, uni_key, **kwargs):
-        img = kwargs['img']
-        text_dict = self.process_text(metadata["question"], history=[])
-        return text_dict, img
+    def normal_qa(self, metadata, uni_key, **kwargs) -> (str, list):
+        return metadata["question"], []
 
     @custom_func
     def normal_caption(self, metadata, uni_key, **kwargs):
-        img = kwargs['img']
         language_zh = is_chinese(metadata["answer"])
         template = self.templates_zh if language_zh else self.templates_en
         prompt = random.choice(template["Caption"]).replace('<image>', '')
-        text_dict = self.process_text(prompt, history=[])
-        return text_dict, img
+        return prompt, []
 
     @custom_func
     def multichoice(self, metadata, uni_key, **kwargs):
-        img = kwargs['img']
-        def generate_prompt_in_multi_choice(choices, question):
-            language_zh = is_chinese(question)
-            template = self.templates_zh if language_zh else self.templates_en
-            choice_prompt = template["Choices"]
-            choice_prompt = random.choice(choice_prompt)
-            prompt = question + "\n" + choice_prompt + "\n"
-            start_op = 'A'
-            for item in choices:
-                prompt += f'{start_op}: {item}\n'
-                start_op = chr(ord(start_op) + 1)
-            prompt += "回答: " if language_zh else "Answer:"
-            return prompt
-        prompt = generate_prompt_in_multi_choice(metadata["choices"], metadata["question"])
-        answer = chr(ord('A')+metadata["answer"]) if isinstance(metadata["answer"], int) else metadata["answer"]
-        text_dict = self.process_text(answer, prompt)
-        return text_dict, img
+        choices, question = metadata["choices"], metadata["question"]
+        language_zh = is_chinese(question)
+        template = self.templates_zh if language_zh else self.templates_en
+        choice_prompt = template["Choices"]
+        choice_prompt = random.choice(choice_prompt)
+        prompt = question + "\n" + choice_prompt + "\n"
+        start_op = 'A'
+        for item in choices:
+            prompt += f'{start_op}: {item}\n'
+            start_op = chr(ord(start_op) + 1)
+        prompt += "回答: " if language_zh else "Answer:"
+        return prompt, []
     
     @custom_func
     def multi_vqa(self, metadata, uni_key, **kwargs):
-        img = kwargs["img"]
-        text_dict = {}
-        try:
-            assert len(metadata["question"]) == len(metadata["answer"]), \
-                f"[{uni_key}]: question and answer should have the same length, but got {len(metadata['question'])} and {len(metadata['answer'])}"
-            vqa_length = len(metadata["question"])
-            assert vqa_length > 0, "[%s]: question and answer should not be empty" % uni_key
-            history = []
-            for i in range(vqa_length-1):
-                history.append((metadata["question"][i], metadata["answer"][i]))
-            text_dict = self.process_text(metadata["question"][-1], history=history)
-        except Exception as e:
-            print_all("[%s]: %s" % (uni_key, e))
-        return text_dict, img
+        assert len(metadata["question"]) == len(metadata["answer"]), \
+            f"[{uni_key}]: question and answer should have the same length, but got {len(metadata['question'])} and {len(metadata['answer'])}"
+        vqa_length = len(metadata["question"])
+        assert vqa_length > 0, "[%s]: question and answer should not be empty" % uni_key
+        history = []
+        for i in range(vqa_length-1):
+            history.append((metadata["question"][i], metadata["answer"][i]))
+        return metadata["question"][-1], history
     
     @custom_func
     def grounding_qa(self, metadata, uni_key, **kwargs):
