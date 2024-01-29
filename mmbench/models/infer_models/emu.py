@@ -12,7 +12,6 @@ import warnings
 class Emu:
 
     CACHE_DIR = '/share/home/chengyean/evaluation/cya_ws/hf_down'
-    # warning: non-official model in https://modelscope.cn/models/AI-ModelScope/Emu2-Chat/summary
     @timer('init')
     def __init__(self, 
                  name, 
