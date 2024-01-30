@@ -1,5 +1,7 @@
 
 class BaseModel(object):
+    is_api: bool = False
+
     def __init__(self):
         pass
 

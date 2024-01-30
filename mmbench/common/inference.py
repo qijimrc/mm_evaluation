@@ -10,17 +10,14 @@ def inference_main(args, dataloader, model_cls):
     rank = args.rank
     eval_iters = len(dataloader)
     ret_total = {}
-    args.log_interval = 10
     with torch.no_grad():
         iteration = 0
         for data in dataloader:
             iteration += 1
-            if iteration % args.log_interval == 0:
-                print_rank0('Evaluating iter {}/{}'.format(iteration, eval_iters))
-            sync_ret = {"question_id": data[0]["question_id"]}
-            sync_ret["response"] = model_cls.generate(prompt=data[0]["question"],
-                                                      history=data[0]["history"],
-                                                      image_path=data[0]["image_path"])
+            sync_ret = {"question_ids": data[0]["question_id"]}
+            sync_ret["preds"] = model_cls.generate(prompt=data[0]["question"],
+                                                   history=data[0]["history"],
+                                                   image_path=data[0]["image_path"])
             for name, value in sync_ret.items():
                 # print_all(f"{name}: {value}")
                 if name not in ret_total:
@@ -47,6 +44,8 @@ def inference_main(args, dataloader, model_cls):
                                 decode_value = DECODE_ERROR_STR
                                 print_rank0(f'decode failed, the output is replaced by {decode_value}.', level=logging.ERROR)
                         ret_total[name].append(decode_value)
+            if iteration % args.log_interval == 0:
+                print_rank0('Evaluating iter {}/{}'.format(iteration, eval_iters))
     return ret_total
     
 def all_gather(tensor, world_size):

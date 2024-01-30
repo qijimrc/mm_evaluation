@@ -4,7 +4,6 @@ import logging
 import pandas as pd
 
 from sat.helpers import print_rank0
-
 from mmbench.common.inference import inference_main
 from mmbench.common.global_vars import *
 from mmbench.dataset import ItemDataset
@@ -13,21 +12,20 @@ class BaseTask(object):
     def __init__(self,
                  task_cfg,
                  custom_functions=dict(),
-                 custom_dataset_functions=dict(),
-                 image_length=None):
+                 custom_dataset_functions=dict()):
         self.task_cfg = task_cfg
         self.custom_functions = custom_functions
         self.custom_dataset_functions = custom_dataset_functions
         self.dataloader_mirror = None
 
-    def print_info(self, print_str, add_sep_lines=False, sep_char='#'):
+    def print_info(self, print_str, add_sep_lines=False, sep_char='#', level=logging.INFO):
         print_items = [self.eval_model_name]
         if self.eval_task_name:
             print_items.append(self.eval_task_name)
         print_str = f"[{'-'.join(print_items)}] {print_str}"
         if add_sep_lines:
             print_str = f"{sep_char * 80}\n{print_str}\n{sep_char * 80}"
-        print_rank0(print_str)
+        print_rank0(print_str, level=level)
     
     @NotImplementedError
     def calc_scores(self, args, results_total):
@@ -36,7 +34,7 @@ class BaseTask(object):
     def fetch_dataset_mirror(self, args):
         """save all data to pd.DataFrame for computing metric scores
         """
-        print_rank0(f'[{self.mode}]: fetch data mirror begin.')
+        self.print_info(f'[{self.mode}]: fetch data mirror begin.')
         def get_data(dataloader):
             result = []
             top_keys, meta_keys = ["datatype", "question_id"], None
@@ -49,7 +47,7 @@ class BaseTask(object):
             return pd.DataFrame(result, columns=top_keys + meta_keys, dtype=str)
 
         mirror_df = get_data(self.dataloader_mirror)
-        print_rank0(f'fetch {self.mode} data mirror end.')
+        self.print_info(f'fetch {self.mode} data mirror end.')
         return mirror_df
 
     def compute_metrics(self, args, model_results):
@@ -62,15 +60,14 @@ class BaseTask(object):
         before_res_len = len(res_df)
         res_df = res_df.drop_duplicates(subset=["question_id"])
         if before_res_len != len(res_df):
-            print_rank0(f"Sample nums change after removing duplicates: {before_res_len} -> {len(res_df)}", level=logging.WARNING)
+            self.print_info(f"Sample nums change after removing duplicates: {before_res_len} -> {len(res_df)}", level=logging.WARNING)
         # get mirror data
         mirror_df = self.fetch_dataset_mirror(args)
         if not args.use_debug_mode:
             assert len(res_df) == len(mirror_df), f"Sample nums not same in test: {len(res_df)} != {len(mirror_df)}"
         res_df = res_df.merge(mirror_df, on="question_id", how="inner")
-        if self.mode == "upload" or (hasattr(args, "save_details_results") and args.save_details_results):
-            res_df.to_csv(args.save_details_result_path, index=None)
-            print_rank0(f"Save detail results in {args.save_details_result_path}...")
+        res_df.to_csv(args.save_details_result_path, index=None)
+        self.print_info(f"Save detail results in {args.save_details_result_path}...")
         return self.calc_scores(args, res_df) if self.mode != "upload" else {} 
 
     def collate_fn(self, all_examples):
@@ -81,10 +78,11 @@ class BaseTask(object):
         self.dataloader_mirror = dataset.data
         # dataloader
         dataloader = torch.utils.data.DataLoader(dataset,
+                                                batch_size=args.batch_size,
                                                 num_workers=0, # args.num_workers
                                                 pin_memory=True,
-                                                collate_fn=self.collate_fn
-                                                )
+                                                collate_fn=self.collate_fn,
+                                                shuffle=False)
         return dataloader
     
     def do_evaluate(self, args, model_cls) -> dict:
@@ -105,6 +103,6 @@ class BaseTask(object):
             model_results = inference_main(args, dataloader, model_cls)
             if args.rank == 0:
                 # compute metrics
-                task_scores[datapath] = self.compute_metrics(args, model_results)
+                task_scores[f"{args.eval_task_name}-{self.mode}"] = self.compute_metrics(args, model_results)
             self.print_info(f"End {datapath}...")
         return task_scores

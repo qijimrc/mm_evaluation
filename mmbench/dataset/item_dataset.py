@@ -44,20 +44,24 @@ class ItemDataset(Dataset, BaseDataset):
         #         new_data.append(c_data)
         # data = new_data
         # DEBUG-CODE-END
+        if self.args.use_debug_mode:
+            return data[:10]
         return data
 
     def split_data(self, args):
         rank = args.rank
         world_size = args.world_size
+        mp_size = args.model_parallel_size
+        rank_group_size = world_size // mp_size
         # add padding data
-        if len(self.data) % world_size == 0:
+        if len(self.data) % rank_group_size == 0:
             pad_data_len = 0
         else:
-            pad_data_len = (len(self.data) // world_size + 1) * world_size - len(self.data)
+            pad_data_len = (len(self.data) // rank_group_size + 1) * rank_group_size - len(self.data)
         # split data
         distributed_data_indices = []
         for i in range(len(self.data) + pad_data_len):
-            if i % world_size == rank:
+            if i % rank_group_size == rank // mp_size:
                 distributed_data_indices.append(i % len(self.data))
         return distributed_data_indices
     
