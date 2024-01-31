@@ -95,3 +95,11 @@ tasks:
     AlignMMBench:
       datapath: [alignmmbench###upload]
       metrics: []
+
+    MMMU:
+      datapath: [MMMU/validation###val]
+      metrics: []
+
+    MMBench:
+      datapath: [MMBench/MMBench_DEV_CN###dev_cn,MMBench/MMBench_DEV_EN###dev_en]
+      metrics: []

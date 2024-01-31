@@ -82,6 +82,8 @@ class Evaluator:
         if 'tasks' in custom_params:
             for level_name in custom_params['tasks'].keys():
                 for task_name, params in custom_params['tasks'][level_name].items():
+                    if task_name not in self.default_cfg["tasks"][level_name]:
+                        self.default_cfg["tasks"][level_name][task_name] = {}
                     self.default_cfg["tasks"][level_name][task_name].update(params)
 
     def _evaluate_tasks(self, args, model_cls, eval_tasks=[]):
@@ -96,7 +98,7 @@ class Evaluator:
                 # reset args & model states
                 args_cp = copy.deepcopy(args)
                 args_cp.save_details_result_path = os.path.join(args_cp.save,
-                                                                f'{self.eval_model_name}_{self.eval_task_name}.csv')
+                                                                f'{self.eval_model_name}_{self.eval_task_name}')
                 self.print_info(f"Detailed results will be saved in {args_cp.save_details_result_path}")
                 # evaluate
                 args_cp.eval_task_name = self.eval_task_name
@@ -127,7 +129,7 @@ class Evaluator:
         args.data_home_dir = self.data_home_dir
         if not (hasattr(args, "save") and args.save):
             args.save = args.save if hasattr(args, 'save') and args.save else self.mmeval_home
-            args.save = os.path.join(args.save, f'mmevaluation-{timestring}')
+        args.save = os.path.join(args.save, f'mmevaluation-{timestring}')
         args.save_result_path = f"{args.save}/scores.jsonl"
         print_rank0(f"All evaluate results will be saved in {args.save_result_path}")
         if not os.path.exists(args.save):

@@ -12,6 +12,7 @@ def add_inference_args(parser):
     group.add_argument("--model_parallel_size", type=int, default=1, help='model parallel size used in inference')
 
     group.add_argument("--log_interval", type=int, default=10)
+    group.add_argument("--save", type=str, default=None)
     return parser
 
 def get_args(args_list=None, parser=None):

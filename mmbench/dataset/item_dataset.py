@@ -45,7 +45,7 @@ class ItemDataset(Dataset, BaseDataset):
         # data = new_data
         # DEBUG-CODE-END
         if self.args.use_debug_mode:
-            return data[:10]
+            return data[:20]
         return data
 
     def split_data(self, args):

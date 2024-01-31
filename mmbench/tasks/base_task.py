@@ -29,6 +29,12 @@ class BaseTask(object):
     
     @NotImplementedError
     def calc_scores(self, args, results_total):
+        """_summary_
+
+        Args:
+            args (_type_): _description_
+            results_total (_type_): preds, question_id, answer, etc.
+        """
         pass
 
     def fetch_dataset_mirror(self, args):
@@ -66,8 +72,8 @@ class BaseTask(object):
         if not args.use_debug_mode:
             assert len(res_df) == len(mirror_df), f"Sample nums not same in test: {len(res_df)} != {len(mirror_df)}"
         res_df = res_df.merge(mirror_df, on="question_id", how="inner")
-        res_df.to_csv(args.save_details_result_path, index=None)
-        self.print_info(f"Save detail results in {args.save_details_result_path}...")
+        res_df.to_csv(f"{args.save_details_result_path}-{self.mode}.csv", index=None)
+        self.print_info(f"Save detail results in {args.save_details_result_path}-{self.mode}.csv...")
         return self.calc_scores(args, res_df) if self.mode != "upload" else {} 
 
     def collate_fn(self, all_examples):

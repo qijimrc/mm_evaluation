@@ -15,9 +15,12 @@ def inference_main(args, dataloader, model_cls):
         for data in dataloader:
             iteration += 1
             sync_ret = {"question_ids": data[0]["question_id"]}
-            sync_ret["preds"] = model_cls.generate(prompt=data[0]["question"],
-                                                   history=data[0]["history"],
-                                                   image_path=data[0]["image_path"])
+            try:
+                sync_ret["preds"] = model_cls.generate(prompt=data[0]["question"],
+                                                    history=data[0]["history"],
+                                                    image_path=data[0]["image_path"])
+            except:
+                sync_ret["preds"] = PAD_STR
             for name, value in sync_ret.items():
                 # print_all(f"{name}: {value}")
                 if name not in ret_total:
