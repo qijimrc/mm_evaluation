@@ -13,6 +13,8 @@ def add_inference_args(parser):
 
     group.add_argument("--log_interval", type=int, default=10)
     group.add_argument("--save", type=str, default=None)
+    group.add_argument("--model_cache_dir", type=str, default=None, 
+                       help="dir caching model ckpts, like huggingface, modelscope, ...")
     return parser
 
 def get_args(args_list=None, parser=None):

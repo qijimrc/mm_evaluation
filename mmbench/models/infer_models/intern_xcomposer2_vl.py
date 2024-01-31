@@ -8,18 +8,16 @@ sys.path.insert(0, '/share/home/chengyean/evaluation/mm_evaluation/')
 from mmbench.models.utils.misc import osp, timer
 from accelerate import init_empty_weights
 
+from mmbench.common.registry import Registry
 
+@Registry.register_model('XComposer2')
 class XComposer2:
-
-    # INSTALL_REQ = False
-    CACHE_DIR = '/share/home/chengyean/evaluation/cya_ws'
-    
-    @timer('init')
     def __init__(self, 
                  model_path='Shanghai_AI_Laboratory/internlm-xcomposer2-vl-7b', 
                  **kwargs):
+        CACHE_DIR = '/share/home/chengyean/evaluation/cya_ws'
         assert model_path is not None
-        self.model_path = osp.join(cls.CACHE_DIR, model_path)
+        self.model_path = osp.join(CACHE_DIR, model_path)
         with init_empty_weights():
             self.model = AutoModelForCausalLM.from_pretrained(self.model_path,
                                             device_map='cpu', 
@@ -33,8 +31,6 @@ class XComposer2:
        
         self.model.tokenizer = self.tokenizer
         
-        
-    @timer('generate')
     def generate(self, image_path, prompt, history=[]):
         response, history = self.model.chat(query=prompt, image=image_path, tokenizer=self.tokenizer,history=self.history)
         self.history = history

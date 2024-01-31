@@ -7,7 +7,7 @@ import sys
 # sys.path.insert(0, '/share/home/chengyean/evaluation/mm_evaluation/')
 from mmbench.models.utils import CustomPromptModel, DATASET_TYPE
 from mmbench.models.utils.misc import osp, timer, isimg, pd, string
-
+from mmbench.common.registry import Registry
 
 class StoppingCriteriaSub(StoppingCriteria):
     def __init__(self, stops=[], encounters=1):
@@ -21,12 +21,12 @@ class StoppingCriteriaSub(StoppingCriteria):
 
         return False
 
+@Registry.register_model('XComposer')
 class XComposer(CustomPromptModel):
 
     # INSTALL_REQ = False
     CACHE_DIR = '/share/home/chengyean/evaluation/cya_ws'
     
-    @timer('init')
     def __init__(self, 
                  model_path='Shanghai_AI_Laboratory/internlm-xcomposer-vl-7b', 
                  **kwargs):
@@ -68,6 +68,15 @@ class XComposer(CustomPromptModel):
         default_kwargs.update(kwargs)
         self.kwargs = default_kwargs
         self.stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
+    
+    def generate(self, image_path, prompt, dataset=None):
+        if dataset is None:
+            return self.generate_vanilla(image_path, prompt)
+        assert isinstance(dataset, str)
+        if dataset is not None and DATASET_TYPE(dataset) == 'multi-choice':
+            return self.generate_multichoice(image_path, prompt)
+        else:
+            return self.generate_vanilla(image_path, prompt)
 
     def generate_vanilla(self, image_path, prompt):
         return self.model.generate(prompt, image_path, **self.kwargs)
@@ -110,16 +119,6 @@ class XComposer(CustomPromptModel):
         output_text = output_text.split(self.model.eoa)[0]
         output_text = output_text.split('<|Bot|>')[-1].strip()
         return output_text
-    
-    @timer('generate')
-    def generate(self, image_path, prompt, dataset=None):
-        if dataset is None:
-            return self.generate_vanilla(image_path, prompt)
-        assert isinstance(dataset, str)
-        if dataset is not None and DATASET_TYPE(dataset) == 'multi-choice':
-            return self.generate_multichoice(image_path, prompt)
-        else:
-            return self.generate_vanilla(image_path, prompt)
         
     def list_to_prompt_embs(self, ti_list):
         assert isinstance(ti_list, list)
