@@ -15,6 +15,7 @@ def add_inference_args(parser):
     group.add_argument("--save", type=str, default=None)
     group.add_argument("--model_cache_dir", type=str, default=None, 
                        help="dir caching model ckpts, like huggingface, modelscope, ...")
+    group.add_argument("--use_debug_mode", type=bool, default=False)
     return parser
 
 def get_args(args_list=None, parser=None):

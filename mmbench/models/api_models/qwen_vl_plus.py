@@ -5,18 +5,21 @@ from mmbench.models.api_models.base import BaseAPI
 
 import dashscope
 from dashscope import MultiModalConversation
+from mmbench.models.utils import osp, timer
+from mmbench.models.base_model import BaseModel
+from mmbench.common.registry import Registry
 
 import copy as cp
-import os.path as osp
+import random as rd
+import time
 
-class QwenVLWrapper(BaseAPI):
+class QwenVLAPI(BaseAPI):
 
-    is_api: bool = True
     def __init__(self, 
                  retry: int = 5,
                  wait: int = 5, 
                  key: str = None,
-                 verbose: bool = True, 
+                 verbose: bool = False, 
                  temperature: float = 0.0, 
                  system_prompt: str = None,
                  max_tokens: int = 1024,
@@ -79,22 +82,58 @@ class QwenVLWrapper(BaseAPI):
 
             return -1, '', ''
 
-class QwenVLPlus(QwenVLWrapper):
+    def generate(self, inputs, **kwargs):
+        input_type = None
+        if isinstance(inputs, str):
+            input_type = 'str'
+        elif isinstance(inputs, list) and isinstance(inputs[0], str):
+            input_type = 'strlist'
+        elif isinstance(inputs, list) and isinstance(inputs[0], dict):
+            input_type = 'dictlist'
+        assert input_type is not None, input_type
 
-    def generate(self, image_path, prompt, dataset=None):
-        return super(QwenVLPlus, self).generate([image_path, prompt])
+        answer = None
+        for i in range(self.retry):
+            T = rd.random() * self.wait * 2
+            time.sleep(T)
+            try:
+                ret_code, answer, log = self.generate_inner(inputs, **kwargs)
+                if ret_code == 0 and self.fail_msg not in answer and answer != '':
+                    if self.verbose:
+                        print(answer)
+                    return answer
+                elif self.verbose:
+                    self.logger.info(f"RetCode: {ret_code}\nAnswer: {answer}\nLog: {log}")
+            except Exception as err:
+                if self.verbose:
+                    self.logger.error(f'An error occured during try {i}:')
+                    self.logger.error(err)
+        
+        return self.fail_msg if answer in ['', None] else answer
+        
+        
+
+@Registry.register_model('QwenVLPlus')
+@Registry.register_model('QwenVLMax')
+class QwenVLWrapper(QwenVLAPI, BaseModel):
     
-    def multi_generate(self, image_paths, prompt, dataset=None):
-        return super(QwenVLPlus, self).generate(image_paths + [prompt])
+    is_api: bool = True
     
-    def interleave_generate(self, ti_list, dataset=None):
-        return super(QwenVLPlus, self).generate(ti_list)
-            
+    @timer('init')
+    def __init__(self, cfg, args,
+                 **kwargs) -> None:
+        model_name = cfg.model_name
+        super(QwenVLWrapper, self).__init__(model_name=model_name)
+    
+    @timer('generate')
+    def generate(self, image_path, prompt, history=[]):
+        return super(QwenVLAPI, self).generate([image_path, prompt])        
+
 
 if __name__ == '__main__':
     from pdb import set_trace as st
-    model = QwenVLPlus(model='qwen-vl-plus')
-    model = QwenVLPlus(model='qwen-vl-max')
+    model = QwenVLWrapper(model_name='qwen-vl-plus')
+    model = QwenVLWrapper(model_name='qwen-vl-max')
     
     resp = model.generate('/share/home/chengyean/evaluation/data/dummy_example/image.png', 
                           prompt='What does this image imply?',)

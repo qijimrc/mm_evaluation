@@ -1,12 +1,7 @@
-import sys
-sys.path.insert(0, '/share/home/chengyean/evaluation/mm_evaluation/')
-from mmbench.models.utils.log import get_logger 
 
 import time
 import random as rd
 from abc import abstractmethod
-
-# from mmbench.models.utils.misc import cn_string, listinstr
 
 class BaseAPI:
     
@@ -23,10 +18,6 @@ class BaseAPI:
         self.kwargs = kwargs
         self.verbose = verbose
         self.fail_msg = fail_msg
-        self.logger = get_logger('ChatAPI')
-        if len(kwargs):
-            self.logger.info(f'BaseAPI received the following kwargs: {kwargs}')
-            self.logger.info(f'Will try to use them as kwargs for `generate`. ')
 
     @abstractmethod
     def generate_inner(self, inputs, **kwargs):
@@ -56,12 +47,13 @@ class BaseAPI:
                     if self.verbose:
                         print(answer)
                     return answer
-                elif self.verbose:
-                    self.logger.info(f"RetCode: {ret_code}\nAnswer: {answer}\nLog: {log}")
+                # elif self.verbose:
+                #     self.logger.info(f"RetCode: {ret_code}\nAnswer: {answer}\nLog: {log}")
             except Exception as err:
-                if self.verbose:
-                    self.logger.error(f'An error occured during try {i}:')
-                    self.logger.error(err)
+                pass
+                # if self.verbose:
+                #     self.logger.error(f'An error occured during try {i}:')
+                #     self.logger.error(err)
         
         return self.fail_msg if answer in ['', None] else answer
         

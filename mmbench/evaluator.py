@@ -9,7 +9,6 @@ import jsonlines
 if os.path.dirname(os.path.dirname(__file__)) not in sys.path:
   sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from sat import mpu
 from sat.helpers import print_rank0
 from omegaconf import OmegaConf
 
@@ -32,11 +31,12 @@ class Evaluator:
             cfg_path (str, optional): _description_. Defaults to os.path.dirname(__file__)+'/config.yaml'.
         """
         self.default_cfg = OmegaConf.load(cfg_path)
-        self._update_params(OmegaConf.load(custom_cfg_path))
+        if custom_cfg_path:
+            self._update_params(OmegaConf.load(custom_cfg_path))
         
         self.mmeval_home = os.environ.get("MMEVAL_HOME", os.path.join(os.path.expanduser('~'), ".mmbench_eval_tmp"))
         if not os.path.exists(self.mmeval_home):
-            os.mkdir(self.mmeval_home, exist_ok=True)
+            os.mkdir(self.mmeval_home)
             print_rank0(f"Using mmeval home: {self.mmeval_home}")
         self.data_home_dir = data_home_dir
         
@@ -105,7 +105,7 @@ class Evaluator:
                 args_cp.eval_model_name = self.eval_model_name
                 model_scores[self.eval_task_name] = c_task.do_evaluate(args_cp, model_cls)
                 # save
-                if torch.distributed.get_rank(group=mpu.get_data_parallel_group()) == 0:
+                if args.rank == 0:
                     with jsonlines.open(args.save_result_path, mode='a') as fp:
                         _tmp = {"model": self.eval_model_name, "task": self.eval_task_name, "results": model_scores[task_name]}
                         fp.write(_tmp)
@@ -142,7 +142,8 @@ class Evaluator:
         for i, model_cls in enumerate(model_names):
             if isinstance(model_cls, str):
                 self.eval_model_name = model_cls
-                model_cls = Registry.get_model_class(model_cls)
+                model_cls = Registry.get_model_class(model_cls)(self.default_cfg['models'][model_cls], 
+                                                                args)
             else:
                 self.eval_model_name = model_cls.__class__.__name__
             model_cls.name = self.eval_model_name
@@ -156,11 +157,62 @@ class Evaluator:
         return all_scores
 
 if __name__ == "__main__":
+    data_home_dir = {
+        "wulan": "/mnt/shared/img_datasets/mmbench_datasets/processed",
+        "zhongwei": "/share/img_datasets/mmbench_datasets/processed_mmbench_20231120",
+        "zhongwei2": "/zhipu-data/img_datasets/mmbench_datasets/processed_mmbench_20231120"
+    }["zhongwei"]
+
+    from mmbench.arguments import get_args
     parser = argparse.ArgumentParser()
     parser.add_argument('--eval_tasks', type=str, nargs='+', help='Specify the tasks for evaluation')
-    args = parser.parse_args()
+    known, args_list = parser.parse_known_args()
+    args = get_args(args_list)
+    
+    args.model_cache_dir = "/share/official_pretrains/mm_evaluation"
+    args.use_debug_mode = True
+    # 
 
-    evaluator = Evaluator()
+    # some hack code to run on multiple gpus
+    import torch.distributed as dist
+    torch.cuda.set_device(0)
+    master_addr = os.environ.get('MASTER_ADDR', 'localhost')
+    master_port = os.environ.get('MASTER_PORT', '7878')
+    world_size = int(os.environ.get('WORLD_SIZE', '1'))
+    rank = int(os.environ.get('LOCAL_RANK', '0'))
+    
+    torch.distributed.init_process_group(
+        backend='nccl',
+        init_method='tcp://{}:{}'.format(master_addr, master_port),
+        world_size=world_size,
+        rank=rank
+    )
+
+    evaluator = Evaluator(data_home_dir=data_home_dir)
+    
     print(evaluator.get_task_names())
     print(evaluator.get_metric_names())
+    print(evaluator.get_model_names())
+    
+    # for model_name in evaluator.get_model_names():
+    #     if model_name == "CogVLM":
+    #         continue
+
+    # model_name = "XComposer"
+    # model_name = "XComposer2"
+    # model_name = "Emu2"
+    # model_name = "Emu2_Chat"
+    # model_name = "QwenVL"
+    # model_name = "QwenVLChat"
+    # model_name = "YiVL_6B"
+    # model_name = "YiVL_34B" OOM
+    # model_name = "QwenVLPlus"
+    # model_name = "QwenVLMax"
+    model_name = "CogVLM"
+    
+    if model_name == "CogVLM":
+        args.model_cache_dir = "/share/official_pretrains/hf_home"
+    
+    print(f"Start evaluating {model_name}")
+    evaluator.run(args, model_name, eval_tasks=["MMMU"])
     print("done")

@@ -1,4 +1,44 @@
 # Configure the data path for evaluation
+models:
+  Emu2:
+    model_name: BAAI/Emu2
+    num_devices: 1
+
+  Emu2_Chat:
+    model_name: BAAI/Emu2-Chat
+    num_devices: 1
+
+  XComposer:
+    model_name: Shanghai_AI_Laboratory/internlm-xcomposer-vl-7b
+    num_devices: 1
+
+  XComposer2:
+    model_name: Shanghai_AI_Laboratory/internlm-xcomposer2-vl-7b
+    num_devices: 1
+
+  QwenVL: 
+    model_name: qwen/Qwen-VL
+    num_devices: 1
+
+  QwenVLChat: 
+    model_name: qwen/Qwen-VL-Chat
+    num_devices: 1
+
+  YiVL_6B:
+    model_name: 01ai/Yi-VL-6B
+    num_devices: 1
+
+  YiVL_34B:
+    model_name: 01ai/Yi-VL-34B
+    num_devices: 1
+
+  QwenVLPlus:
+    model_name: qwen-vl-plus
+
+  QwenVLMax:
+    model_name: qwen-vl-max
+    
+# Configure the data path for evaluation
 
 tasks:
   level_1:
