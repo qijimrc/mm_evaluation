@@ -65,7 +65,7 @@ class COMScore(BaseMetric):
                 frags_scores.append(score_frags)
                 bleus_scores.append(score_txt)
                 explain_scores.append([score_frags, score_txt])
-            explain_score_avg = np.mean([(sfr*0.8 + stx*0.2)/2 for sfr, stx in explain_scores])
+            explain_score_avg = np.mean([(sfr*0.2 + stx*0.8)/2 for sfr, stx in explain_scores])
 
         ans_score = 0.0
         true_anss, pred_anss = [], []

@@ -1,6 +1,6 @@
 # Configure the task for evaluation
 
-server_addr: wulan
+server_addr: ningxia
 
 home_env:
   ningxia:
