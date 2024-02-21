@@ -25,7 +25,7 @@ class BaseTask(object):
         return ret
 
     def fetch_dataset_mirror(self):
-        """save all data to pd.DataFrame for computing metric scores
+        """save all data to dict for computing metric scores
         """
         log(f'fetch {self.mode} data mirror begin.')
         def get_data(dataloader):
@@ -46,9 +46,11 @@ class BaseTask(object):
         # get mirror data
         mirror_data = self.fetch_dataset_mirror()
         # merge preds
-        res_data = []
+        _ids, res_data = set(), []
         for ques, pred in zip(model_results["question_ids"], model_results["preds"]):
-            res_data.append({**mirror_data[ques], "predict": pred})
+            if ques not in _ids:
+                _ids.add(ques)
+                res_data.append({**mirror_data[ques], "predict": pred})
         if not args.use_debug_mode:
             assert len(res_data) == len(mirror_data), f"Sample nums not same: {len(res_data)} != {len(mirror_data)}"
         # save & compute
