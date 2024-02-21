@@ -17,18 +17,22 @@ DATASET_NAWE = "NoCaps"
 def process_data(root_dir):
     anns_file = os.path.join(root_dir, f"raw/NoCaps/nocaps_val_4500_captions.json")
     img_dir = "raw/NoCaps/imgs"    
-    save_dir = os.path.join(root_dir, f"processed/NoCaps/val")
+    save_dir = os.path.join(root_dir, f"processed/NoCaps-New/val")
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
+    img_captions = {}
     with open(anns_file, "r", encoding="utf-8") as fp:
         data = json.load(fp)
-        annotations = data['annotations']
+        for ann in data['annotations']:
+            if ann["image_id"] not in img_captions:
+                img_captions[ann["image_id"]] = []
+            img_captions[ann["image_id"]].append(ann["caption"])
         id2imgs = {info['id']: info for info in data['images']}
 
     all_results = {}
     drop_num, item_num = 0, 0
-    for ann in tqdm.tqdm(annotations):
-        imginfo = id2imgs[ann['image_id']]
+    for image_id, caption_list in tqdm.tqdm(img_captions.items()):
+        imginfo = id2imgs[image_id]
         image_path = os.path.join(root_dir, img_dir, imginfo['file_name'])
         if not os.path.exists(image_path):
             print(f"not found: {image_path}")
@@ -37,9 +41,10 @@ def process_data(root_dir):
             all_results[image_path] = []
         c_data = {
             "datatype": "normal_caption",
-            "question_id": ann["id"],
+            "question_id": "%09d" %item_num,
             "metadata": {
-                "answer": ann["caption"],
+                "answer": caption_list[0],
+                "answer_list": caption_list,
                 'open_image_id': imginfo['open_images_id'],
                 'domain': imginfo['domain'],
                 "image_id": ann["image_id"]
@@ -53,5 +58,5 @@ def process_data(root_dir):
     print(f"Save: {image_num} images, {item_num} samples. Drop: {drop_num} samples")
 
 if __name__ == "__main__":
-    root_dir = "/nxchinamobile2/shared/mmbench_datasets"
+    root_dir = "/share/img_datasets/mmbench_datasets"
     process_data(root_dir)

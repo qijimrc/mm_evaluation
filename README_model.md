@@ -19,8 +19,8 @@ cd csrc/rotary
 pip install -e .
 ```
 - Yi requires some local files (modified from the original LLaVa repo), so we need to set ```root``` directory in the model file to the local directory ('/share/home/chengyean/evaluation/Yi', see the model file for more details)
-- Qwen-VL-Plus in ```mmbench/api_models``` requires a DASHSCOPE_API_KEY, please contact chengyean for his personal key.
+- Qwen-VL-Plus in ```mmdoctor/api_models``` requires a DASHSCOPE_API_KEY, please contact chengyean for his personal key.
 
 ### models
 
-- support multi-gpu loading using accelerate.device_map, please refer to ```mmbench/infer_models/yi.py class YiVL_34B``` for an example.
+- support multi-gpu loading using accelerate.device_map, please refer to ```mmdoctor/infer_models/yi.py class YiVL_34B``` for an example.

@@ -1,0 +1,142 @@
+# Configure the model and tasks
+models:
+  # Locals
+  Emu2:
+    model_path: BAAI/Emu2
+    num_devices: 1
+
+  Emu2_Chat:
+    model_path: BAAI/Emu2-Chat
+    num_devices: 1
+
+  XComposer:
+    model_path: Shanghai_AI_Laboratory/internlm-xcomposer-vl-7b
+    num_devices: 1
+
+  XComposer2:
+    model_path: Shanghai_AI_Laboratory/internlm-xcomposer2-vl-7b
+    num_devices: 1
+
+  QwenVL: 
+    model_path: qwen/Qwen-VL
+    num_devices: 1
+
+  QwenVLChat: 
+    model_path: qwen/Qwen-VL-Chat
+    num_devices: 1
+
+  YiVL_6B:
+    model_path: 01ai/Yi-VL-6B
+    num_devices: 1
+
+  YiVL_34B:
+    model_path: 01ai/Yi-VL-34B
+    num_devices: 1
+  
+  # APIs
+  QwenVLPlus:
+    model_path: qwen-vl-plus
+    api_key: sk-a07ad871a3614cae948f22e2b3691a1c
+    system_prompt: 
+
+  QwenVLMax:
+    model_path: qwen-vl-max
+    api_key: sk-a07ad871a3614cae948f22e2b3691a1c
+    system_prompt: 
+  
+  GPT4V:
+    url: https://one-api.glm.ai/v1
+    api_key: sk-DDbPFgZL8UyHVMb13f6a437aC0F04978931689A9F9F2Ad46
+    model_version: gpt-4-vision-preview
+    
+tasks:
+  VQA:
+    VQAv2:
+      datapath: [VQAV2/val###val,VQAV2/test###upload]
+      metrics: ['vqa_acc', 'em-acc']
+
+    TextVQA:
+      datapath: [TextVQA/val###val,TextVQA/test###upload]
+      metrics: ['vqa_acc', 'em-acc']
+
+    TDIUC:
+      datapath: [TDIUC/val###val]
+      metrics: ['em-acc']
+
+    ScienceQA:
+      datapath: [ScienceQA/test###test]
+
+    OKVQA:
+      datapath: [OK-VQA/val###val]
+      metrics: ['vqa_acc', 'em-acc']
+
+    OCRVQA:
+      datapath: [OCRVQA/test###test]
+      metrics: ['em-acc']
+        
+    NoCaps:
+      datapath: [NoCaps-New/val###val]
+      metrics: ['caption']
+        
+    COCO:
+      datapath: [COCO-New/val###val]
+      metrics: ['caption']
+      
+    GQA:
+      datapath: [GQA/testdev_balanced###test]
+      metrics: ['em-acc']
+
+    OCR_EN:
+      datapath: [TAL_OCR_ENG/test###test]
+      metrics: ['caption']
+    
+    OCR_ZH:
+      datapath: [TAL_OCR_CHN/test###test]
+      metrics: ['caption']
+
+    STVQA:
+      datapath: [STVQA/test_task_3###upload]
+      metrics: ['ANLS']
+
+    FlickrCap:
+      datapath: [FlickrCap/test###test]
+      metrics: ['caption']
+
+    ChartQA:
+      datapath: [ChartQA/test###test]
+      metrics: ["relaxed_acc"]
+
+    DocVQA:
+      datapath: [DocVQA/val###val, DocVQA/test###upload]
+      metrics: ["ANLS"]
+
+    VizWizVQA:
+      datapath: [VizWiz-VQA/val###val,VizWiz-VQA/test###upload]
+      metrics: ['vqa_acc']
+    
+    TallyQA:
+      datapath: [TallyQA/test###test]
+      metrics: ['em-acc']
+
+    RefCOCO:
+      datapath: [RefCOCO/refcoco-val###val,RefCOCO/test###test]
+
+    Visual7W:
+      datapath: [Visual7W/test###test]
+
+  MLVM:
+    MMMU:
+      datapath: [MMMU/validation###val]
+
+    MMBench:
+      datapath: [MMBench/MMBench_DEV_CN###dev_cn,MMBench/MMBench_DEV_EN###dev_en]
+
+  AlignBench:
+    TouchStone:
+      datapath: [TouchStone/test###upload]
+
+    TouchStoneChinese:
+      datapath: [TouchStone/test-zh###upload]
+    
+    AlignMMBench:
+      datapath: [alignmmbench###upload]

@@ -17,10 +17,10 @@ DATASET_NAWE = "COCO"
 
 def process_data(root_dir, mode):
     anns_file = os.path.join(root_dir, f'raw/COCO/dataset_coco.json')
-    img_dir = f"/nxchinamobile2/shared/img_datasets/MSCOCO/MSCOCO2014"
+    img_dir = f"/share/img_datasets/MSCOCO/MSCOCO2014"
     urls = glob.glob(img_dir + '/*/*')
     name2url = {url.split('/')[-1]: url for url in urls}
-    save_dir = os.path.join(root_dir, f"processed/COCO/{mode}")
+    save_dir = os.path.join(root_dir, f"processed_mmbench_20231120/COCO-New/{mode}")
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     with open(anns_file, "r", encoding="utf-8") as fp:
@@ -38,24 +38,23 @@ def process_data(root_dir, mode):
             drop_num += 1
         if image_path not in all_results:
             all_results[image_path] = []
-        sentences = ann['sentences']
-        for sen in sentences:
-            answer = sen['raw']
-            c_data = {
-                "datatype": "normal_caption",
-                "question_id": "%09d" %item_num,
-                "metadata": {
-                    "answer": answer,
-                }
+        answer_list = [s["raw"] for s in ann["sentences"]]
+        c_data = {
+            "datatype": "normal_caption",
+            "question_id": "%09d" %item_num,
+            "metadata": {
+                "answer": answer_list[0],
+                "answer_list": answer_list
             }
-            all_results[image_path].append(c_data)
-            item_num += 1
+        }
+        all_results[image_path].append(c_data)
+        item_num += 1
     all_data = [{"image_path": key, "json": value} for key, value in all_results.items()]
     random.shuffle(all_data)
     image_num = save_data(all_data, save_dir, DATASET_NAWE, "test")
     print(f"Save: {image_num} images, {item_num} samples. Drop: {drop_num} samples")
 
 if __name__ == "__main__":
-    root_dir = "/nxchinamobile2/shared/mmbench_datasets"
+    root_dir = "/share/img_datasets/mmbench_datasets"
     for mode in ['train', 'val', 'test']:
         process_data(root_dir, mode)

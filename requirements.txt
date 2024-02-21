@@ -1,7 +1,7 @@
 ipdb
 numpy
 omegaconf
-openai
+openai>=1.0
 pandas
 Pillow
 Pillow
