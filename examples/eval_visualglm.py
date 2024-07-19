@@ -16,9 +16,9 @@ from sat.model import AutoModel
 from sat.model.mixins import CachedAutoregressiveMixin
 from sat.quantization.kernels import quantize
 
-from mmbench.evaluator import Evaluator
-from mmbench.common.utils import is_chinese
-from mmbench.common.model import ModelInterface
+from mmeval.evaluator import Evaluator
+from mmeval.common.utils import is_chinese
+from mmeval.common.model import ModelInterface
     
 def _history_to_prompt(self, history, query, add_eoi_first=False):
     prompt = self.tokenizer.eoi if add_eoi_first else ""
